@@ -10,7 +10,18 @@ const state = {
   queue: [],
   qIndex: 0,
   revealed: false,
+  studyMode: 'flashcard',
 };
+const STUDY_MODE_KEY = 'flashcards_study_mode';
+try{
+  const savedMode = localStorage.getItem(STUDY_MODE_KEY);
+  if(savedMode) state.studyMode = savedMode;
+}catch(e){}
+document.getElementById('studyModeSelect').value = state.studyMode;
+document.getElementById('studyModeSelect').addEventListener('change', (e)=>{
+  state.studyMode = e.target.value;
+  try{ localStorage.setItem(STUDY_MODE_KEY, state.studyMode); }catch(err){}
+});
 
 // ---------- helpers ----------
 function todayStr(){ return new Date().toISOString().slice(0,10); }
@@ -170,6 +181,7 @@ function switchTab(tab){
   if(tab==='decks'){ showDeckListView(); renderHskGrid('hskGridDecks'); renderCustomDecks('customDeckList2'); }
   if(tab==='profil'){ populateVoiceSelect(); }
   if(tab==='hskmanage'){ renderCustomHskWordList(); }
+  if(tab==='words'){ initWordsTab(); }
 }
 
 // ============================================================
@@ -447,6 +459,7 @@ function startEditCard(c){
   document.getElementById('cardBack').value = c.back || '';
   document.getElementById('cardHanzi').value = c.hanzi || '';
   document.getElementById('cardPinyin').value = c.pinyin || '';
+  document.getElementById('cardImage').value = c.image_url || '';
   document.getElementById('cardFormLabel').textContent = 'Kartani tahrirlash';
   document.getElementById('cardFormSubmitBtn').textContent = 'Yangilash';
   document.getElementById('cancelEditCardBtn').classList.remove('hidden');
@@ -466,11 +479,12 @@ document.getElementById('addCardForm').addEventListener('submit', async (e)=>{
   const back = document.getElementById('cardBack').value.trim();
   const hanzi = document.getElementById('cardHanzi').value.trim();
   const pinyin = document.getElementById('cardPinyin').value.trim();
+  const image_url = document.getElementById('cardImage').value.trim();
   if(!front || !back) return;
   const arr = state.cardsByDeck.get(state.currentDeck.id) || [];
   if(editingCardId){
     const {data, error} = await sb.from('cards').update({
-      front, back, hanzi: hanzi||null, pinyin: pinyin||null
+      front, back, hanzi: hanzi||null, pinyin: pinyin||null, image_url: image_url||null
     }).eq('id', editingCardId).select().single();
     if(error){ showToast("Xatolik: "+error.message); return; }
     const idx = arr.findIndex(c=>c.id===editingCardId);
@@ -481,7 +495,7 @@ document.getElementById('addCardForm').addEventListener('submit', async (e)=>{
     showToast("Karta yangilandi");
   }else{
     const {data, error} = await sb.from('cards').insert({
-      deck_id: state.currentDeck.id, front, back, hanzi: hanzi||null, pinyin: pinyin||null
+      deck_id: state.currentDeck.id, front, back, hanzi: hanzi||null, pinyin: pinyin||null, image_url: image_url||null
     }).select().single();
     if(error){ showToast("Xatolik: "+error.message); return; }
     arr.push(data);
@@ -768,6 +782,52 @@ document.addEventListener('keydown', (e)=>{
 });
 
 // ============================================================
+// SO'ZLAR RO'YXATI (barcha ruxsat etilgan HSK so'zlarini ko'rish)
+// ============================================================
+let wordsShownCount = 0;
+const WORDS_PAGE_SIZE = 100;
+function allowedLevelsList(){
+  const list = [];
+  for(let l=1;l<=6;l++) if(isLevelAllowed(l)) list.push(l);
+  return list;
+}
+function initWordsTab(){
+  const sel = document.getElementById('wordsLevelSelect');
+  const allowed = allowedLevelsList();
+  sel.innerHTML = allowed.map(l=>`<option value="${l}">HSK ${l}</option>`).join('');
+  if(!allowed.length){
+    document.getElementById('wordsListWrap').innerHTML = `<p style="color:var(--ink-faint);font-size:13px;">Sizga hech qanday HSK darajasi ochilmagan.</p>`;
+    document.getElementById('loadMoreWordsBtn').classList.add('hidden');
+    return;
+  }
+  wordsShownCount = WORDS_PAGE_SIZE;
+  renderWordList();
+}
+document.getElementById('wordsLevelSelect').addEventListener('change', ()=>{ wordsShownCount = WORDS_PAGE_SIZE; renderWordList(); });
+document.getElementById('wordsSearchInput').addEventListener('input', ()=>{ wordsShownCount = WORDS_PAGE_SIZE; renderWordList(); });
+document.getElementById('loadMoreWordsBtn').addEventListener('click', ()=>{ wordsShownCount += WORDS_PAGE_SIZE; renderWordList(); });
+function renderWordList(){
+  const level = Number(document.getElementById('wordsLevelSelect').value);
+  const q = document.getElementById('wordsSearchInput').value.trim().toLowerCase();
+  let words = HSK_DATA.filter(w=>w[3]===level);
+  if(q){
+    words = words.filter(w => w[0].includes(q) || w[1].toLowerCase().includes(q) || w[2].toLowerCase().includes(q));
+  }
+  const wrap = document.getElementById('wordsListWrap');
+  if(!words.length){ wrap.innerHTML = `<p style="color:var(--ink-faint);font-size:13px;">Hech narsa topilmadi.</p>`; document.getElementById('loadMoreWordsBtn').classList.add('hidden'); return; }
+  const shown = words.slice(0, wordsShownCount);
+  wrap.innerHTML = shown.map(w=>{
+    const r = state.reviews.get(hskKey(level, w[0], w[1]));
+    const learned = r && Number(r.reps) > 0;
+    return `<div class="word-row">
+      <div><span class="wh">${escapeHtml(w[0])}</span><span class="wp">${escapeHtml(w[1])}</span></div>
+      <div class="wm">${escapeHtml(w[2])} ${learned?'<span class="learned-tag">✓ o\'rganilgan</span>':''}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('loadMoreWordsBtn').classList.toggle('hidden', wordsShownCount >= words.length);
+}
+
+// ============================================================
 // OFFLINE NAVBAT: internet yo'q paytda baholarni saqlab, qaytganda yuboradi
 // ============================================================
 const OFFLINE_QUEUE_KEY = 'flashcards_offline_queue_v1';
@@ -815,7 +875,7 @@ function startDeckStudy(deckId){
   cards.forEach(c=>{
     const r = state.reviews.get(c.id);
     if(!r || r.due_date <= todayStr()){
-      due.push({key:c.id, type:'custom', front:c.front, back:c.back, hanzi:c.hanzi, pinyin:c.pinyin, label: state.currentDeck ? state.currentDeck.name : ''});
+      due.push({key:c.id, type:'custom', front:c.front, back:c.back, hanzi:c.hanzi, pinyin:c.pinyin, image_url:c.image_url, label: state.currentDeck ? state.currentDeck.name : ''});
     }
   });
   beginSession(due);
@@ -832,6 +892,22 @@ document.getElementById('exitStudyBtn').addEventListener('click', ()=>{
   switchTab('dashboard'); renderDashboard();
 });
 
+function normalizePinyin(s){
+  return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,'').trim();
+}
+function getDistractors(item, count){
+  let pool;
+  if(item.type === 'hsk'){
+    pool = HSK_DATA.filter(w=>w[2]!==item.meaning).map(w=>w[2]);
+  }else{
+    const deckCards = (state.currentDeck ? state.cardsByDeck.get(state.currentDeck.id) : null) || [];
+    pool = deckCards.filter(c=>c.back!==item.back).map(c=>c.back);
+    if(pool.length < count) pool = pool.concat(HSK_DATA.map(w=>w[2]));
+  }
+  shuffle(pool);
+  return [...new Set(pool)].slice(0, count);
+}
+
 function renderStudyCard(){
   const stage = document.getElementById('cardStage');
   const meta = document.getElementById('studyMeta');
@@ -842,32 +918,19 @@ function renderStudyCard(){
   }
   const item = state.queue[state.qIndex];
   meta.textContent = `${item.label||''} · ${state.qIndex+1}/${state.queue.length}`;
-  let html = '';
-  const hanzi = item.type==='hsk' ? item.hanzi : item.hanzi;
-  if(hanzi){
-    html += tzgRowHtml(hanzi);
-    html += `<button class="speak-btn" id="speakBtn" title="Talaffuzni eshitish">🔊</button><div class="tts-hint" id="ttsHint"></div>`;
-  }
-  if(item.type==='hsk'){
-    if(!state.revealed){
-      html += `<div class="btn-row" style="margin-top:14px;"><button class="btn" id="revealBtn">Ko'rsatish</button></div>`;
-    }else{
-      html += `<div class="pinyin-text">${escapeHtml(item.pinyin)}</div><div class="back-text">${escapeHtml(item.meaning)}</div>`;
-      html += gradeRowHtml();
-    }
-  }else{
-    if(!hanzi) html += `<div class="front-text">${escapeHtml(item.front)}</div>`;
-    if(!state.revealed){
-      html += `<div class="btn-row" style="margin-top:14px;"><button class="btn" id="revealBtn">Ko'rsatish</button></div>`;
-    }else{
-      if(item.pinyin) html += `<div class="pinyin-text">${escapeHtml(item.pinyin)}</div>`;
-      html += `<div class="back-text">${escapeHtml(item.back)}</div>`;
-      html += gradeRowHtml();
-    }
-  }
-  stage.innerHTML = html;
-  const revealBtn = document.getElementById('revealBtn');
-  if(revealBtn) revealBtn.addEventListener('click', ()=>{ state.revealed = true; renderStudyCard(); });
+  const mode = state.studyMode || 'flashcard';
+  const hanzi = item.hanzi;
+  const correctAnswer = item.type==='hsk' ? item.meaning : item.back;
+  const correctPinyin = item.pinyin || '';
+  const imgHtml = item.image_url ? `<img class="card-img" src="${escapeHtml(item.image_url)}" alt="">` : '';
+
+  if(mode === 'quiz') renderQuizCard(stage, item, hanzi, correctAnswer, imgHtml);
+  else if(mode === 'listen') renderListenCard(stage, item, hanzi, correctPinyin, correctAnswer, imgHtml);
+  else if(mode === 'type') renderTypeCard(stage, item, hanzi, correctPinyin, correctAnswer, imgHtml);
+  else renderFlashcardCard(stage, item, hanzi, correctPinyin, correctAnswer, imgHtml);
+}
+
+function wireCommon(stage, hanzi){
   const speakBtn = document.getElementById('speakBtn');
   if(speakBtn) speakBtn.addEventListener('click', ()=> speakHanzi(hanzi, document.getElementById('ttsHint')));
   stage.querySelectorAll('.tzg-row .tzg').forEach(cell=>{
@@ -877,6 +940,97 @@ function renderStudyCard(){
     b.addEventListener('click', ()=> grade(b.dataset.q));
   });
 }
+
+function renderFlashcardCard(stage, item, hanzi, pinyin, answer, imgHtml){
+  let html = imgHtml;
+  if(hanzi){ html += tzgRowHtml(hanzi); html += `<button class="speak-btn" id="speakBtn" title="Talaffuzni eshitish">🔊</button><div class="tts-hint" id="ttsHint"></div>`; }
+  if(!hanzi) html += `<div class="front-text">${escapeHtml(item.front)}</div>`;
+  if(!state.revealed){
+    html += `<div class="btn-row" style="margin-top:14px;"><button class="btn" id="revealBtn">Ko'rsatish</button></div>`;
+  }else{
+    if(pinyin) html += `<div class="pinyin-text">${escapeHtml(pinyin)}</div>`;
+    html += `<div class="back-text">${escapeHtml(answer)}</div>`;
+    html += gradeRowHtml();
+  }
+  stage.innerHTML = html;
+  const revealBtn = document.getElementById('revealBtn');
+  if(revealBtn) revealBtn.addEventListener('click', ()=>{ state.revealed = true; renderStudyCard(); });
+  wireCommon(stage, hanzi);
+}
+
+function renderQuizCard(stage, item, hanzi, answer, imgHtml){
+  let html = imgHtml;
+  if(hanzi){ html += tzgRowHtml(hanzi); html += `<button class="speak-btn" id="speakBtn" title="Talaffuzni eshitish">🔊</button><div class="tts-hint" id="ttsHint"></div>`; }
+  else html += `<div class="front-text">${escapeHtml(item.front)}</div>`;
+  if(!state.revealed){
+    const options = shuffle([answer, ...getDistractors(item, 3)]);
+    html += `<div class="quiz-options">${options.map(o=>`<button class="quiz-opt" data-val="${escapeHtml(o)}">${escapeHtml(o)}</button>`).join('')}</div>`;
+  }else{
+    html += `<div class="back-text">${escapeHtml(answer)}</div>` + gradeRowHtml();
+  }
+  stage.innerHTML = html;
+  wireCommon(stage, hanzi);
+  stage.querySelectorAll('.quiz-opt').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const correct = btn.dataset.val === answer;
+      stage.querySelectorAll('.quiz-opt').forEach(b=>{
+        b.disabled = true;
+        if(b.dataset.val === answer) b.classList.add('correct');
+        else if(b===btn && !correct) b.classList.add('wrong');
+      });
+      state.revealed = true;
+      state.lastQuizCorrect = correct;
+      setTimeout(()=>{ renderStudyCard(); }, 700);
+    });
+  });
+}
+
+function renderListenCard(stage, item, hanzi, pinyin, answer, imgHtml){
+  let html = imgHtml;
+  if(!state.revealed){
+    html += `<div class="btn-row" style="margin-top:6px;"><button class="speak-btn" id="playBtn" title="Eshitish" style="width:64px;height:64px;font-size:28px;">🔊</button></div>
+      <div class="tts-hint" id="ttsHint" style="margin-top:10px;"></div>
+      <div class="btn-row" style="margin-top:16px;"><button class="btn" id="revealBtn">Ko'rsatish</button></div>`;
+  }else{
+    if(hanzi) html += tzgRowHtml(hanzi);
+    if(pinyin) html += `<div class="pinyin-text">${escapeHtml(pinyin)}</div>`;
+    html += `<div class="back-text">${escapeHtml(answer)}</div>` + gradeRowHtml();
+  }
+  stage.innerHTML = html;
+  wireCommon(stage, hanzi);
+  const playBtn = document.getElementById('playBtn');
+  if(playBtn) playBtn.addEventListener('click', ()=> speakHanzi(hanzi || answer, document.getElementById('ttsHint')));
+  const revealBtn = document.getElementById('revealBtn');
+  if(revealBtn) revealBtn.addEventListener('click', ()=>{ state.revealed = true; renderStudyCard(); });
+  if(!state.revealed) setTimeout(()=> speakHanzi(hanzi || answer, document.getElementById('ttsHint')), 300);
+}
+
+function renderTypeCard(stage, item, hanzi, pinyin, answer, imgHtml){
+  let html = imgHtml;
+  if(hanzi){ html += tzgRowHtml(hanzi); html += `<button class="speak-btn" id="speakBtn" title="Talaffuzni eshitish">🔊</button><div class="tts-hint" id="ttsHint"></div>`; }
+  else html += `<div class="front-text">${escapeHtml(item.front)}</div>`;
+  if(!state.revealed){
+    html += `<div class="type-answer-row"><input id="typeAnswerInput" placeholder="Pinyin'ni tering..." autocomplete="off"><button class="btn" id="checkTypeBtn">Tekshirish</button></div>`;
+  }else{
+    const ok = state.lastTypeCorrect;
+    html += `<div class="answer-feedback ${ok?'ok':'no'}">${ok ? "✓ To'g'ri!" : "✗ Noto'g'ri"}</div>`;
+    html += `<div class="pinyin-text">${escapeHtml(pinyin)}</div><div class="back-text">${escapeHtml(answer)}</div>`;
+    html += gradeRowHtml();
+  }
+  stage.innerHTML = html;
+  wireCommon(stage, hanzi);
+  const checkBtn = document.getElementById('checkTypeBtn');
+  const input = document.getElementById('typeAnswerInput');
+  function submit(){
+    const val = input.value;
+    state.lastTypeCorrect = pinyin ? (normalizePinyin(val) === normalizePinyin(pinyin)) : false;
+    state.revealed = true;
+    renderStudyCard();
+  }
+  if(checkBtn) checkBtn.addEventListener('click', submit);
+  if(input){ input.focus(); input.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); submit(); } }); }
+}
+
 function gradeRowHtml(){
   return `<div class="grade-row">
     <button class="grade-btn again" data-q="again">Bilmadim</button>
