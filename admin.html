@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin panel · Flashcards</title>
+<style>
+:root{
+  --paper:#F5F3EE; --surface:#FFFFFF;
+  --ink:#20232A; --ink-soft:#585B62; --ink-faint:#93908A;
+  --line:#DEDAD0; --line-soft:#EAE7DE;
+  --accent:#4F46D6; --accent-soft:#ECEBFB;
+  --good:#2F6B57; --good-soft:#E4F0EC;
+  --bad:#B7312C; --bad-soft:#FBEAE9;
+  --radius:8px; --shadow:0 1px 2px rgba(20,20,24,.05),0 6px 18px rgba(20,20,24,.06);
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --display:Georgia,"Iowan Old Style","Times New Roman",serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);min-height:100vh;}
+.wrap{max-width:820px;margin:0 auto;padding:20px 18px 64px;}
+.hidden{display:none!important;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;margin-bottom:20px;border-bottom:2px solid var(--ink);}
+.brand h1{font-family:var(--display);font-size:20px;margin:0;font-weight:500;}
+.btn{font-family:var(--sans);font-weight:600;font-size:13px;padding:9px 16px;border-radius:var(--radius);border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th{text-align:left;padding:10px 14px;background:var(--line-soft);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);}
+td{padding:10px 14px;border-top:1px solid var(--line-soft);vertical-align:middle;}
+.badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;}
+.badge.active{background:var(--good-soft);color:var(--good);}
+.badge.inactive{background:var(--bad-soft);color:var(--bad);}
+.badge.role-admin{background:var(--accent-soft);color:var(--accent);margin-left:6px;}
+.toggle-btn{font-size:12px;padding:6px 12px;border-radius:16px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600;}
+.toggle-btn.make-active{color:var(--good);}
+.toggle-btn.make-inactive{color:var(--bad);}
+.state-msg{max-width:420px;margin:80px auto;text-align:center;}
+.state-msg .icon{font-size:30px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand"><h1>Admin panel</h1></div>
+    <a href="index.html" class="btn">← Ilovaga qaytish</a>
+  </div>
+
+  <div id="stateLoading" class="state-msg"><p>Yuklanmoqda…</p></div>
+
+  <div id="stateNoAccess" class="state-msg hidden card" style="padding:30px;">
+    <div class="icon">⛔</div>
+    <h3>Sizda ruxsat yo'q</h3>
+    <p style="color:var(--ink-soft);font-size:14px;">Bu sahifa faqat administratorlar uchun.</p>
+  </div>
+
+  <div id="adminContent" class="hidden">
+    <p style="color:var(--ink-soft);font-size:13.5px;margin-bottom:14px;">
+      Foydalanuvchini "Bloklash" qilsangiz, u tizimga kira olmay qoladi.
+    </p>
+    <div class="card">
+      <table>
+        <thead><tr><th>Email</th><th>Ro'yxatdan o'tgan</th><th>Holat</th><th>Amal</th></tr></thead>
+        <tbody id="usersTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
