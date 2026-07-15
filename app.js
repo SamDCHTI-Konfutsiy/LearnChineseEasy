@@ -116,12 +116,14 @@ async function enterAppFromSession(session, notifyEvent=null, retry=0){
   state.profile = profile;
   showAppScreen();
   document.getElementById('adminLink').classList.toggle('hidden', profile.role !== 'admin');
+  document.getElementById('hskManageLink').classList.toggle('hidden', !(profile.role === 'admin' || profile.can_edit_hsk));
   if(notifyEvent){
     notifyTelegram(notifyEvent, {
       email: session.user.email, user_id: session.user.id,
       role: profile.role, is_active: profile.is_active, created_at: profile.created_at,
     });
   }
+  await loadCustomHskWords();
   await loadInitialData();
   renderDashboard();
   if(navigator.onLine) flushOfflineQueue();
@@ -167,6 +169,7 @@ function switchTab(tab){
   document.getElementById('tab-'+tab).classList.remove('hidden');
   if(tab==='decks'){ showDeckListView(); renderCustomDecks('customDeckList2'); }
   if(tab==='profil'){ populateVoiceSelect(); }
+  if(tab==='hskmanage'){ renderCustomHskWordList(); }
 }
 
 // ============================================================
@@ -212,20 +215,82 @@ function deckDueCount(deckId){
 }
 
 // ============================================================
+// HSK MAXSUS SO'ZLAR (muharrirlar qo'shgan, hammaga ko'rinadigan)
+// ============================================================
+state.customHskWords = [];
+async function loadCustomHskWords(){
+  const {data, error} = await sb.from('hsk_words_custom').select('*').order('created_at');
+  if(error){ return; } // jadval hali yaratilmagan bo'lishi mumkin — jim o'tkazamiz
+  state.customHskWords = data || [];
+  const seen = new Set(HSK_DATA.map(w=>w[0]+'|'+w[1]));
+  data.forEach(w=>{
+    const k = w.hanzi+'|'+w.pinyin;
+    if(!seen.has(k)){ HSK_DATA.push([w.hanzi, w.pinyin, w.meaning, w.level]); seen.add(k); }
+  });
+}
+function renderCustomHskWordList(){
+  const el = document.getElementById('customHskWordList');
+  if(!state.customHskWords.length){ el.innerHTML = `<p style="color:var(--ink-faint);font-size:13px;">Hali qo'shilgan so'z yo'q.</p>`; return; }
+  el.innerHTML = '';
+  state.customHskWords.slice().reverse().forEach(w=>{
+    const row = document.createElement('div');
+    row.className = 'card-row';
+    row.innerHTML = `<div><span class="cf">${escapeHtml(w.hanzi)}</span> (${escapeHtml(w.pinyin)}) — <span class="cb">${escapeHtml(w.meaning)} · HSK ${w.level}</span></div>
+      <button class="x-btn" title="O'chirish">&times;</button>`;
+    row.querySelector('.x-btn').addEventListener('click', async ()=>{
+      if(!confirm("Bu so'z o'chirilsinmi?")) return;
+      const {error} = await sb.from('hsk_words_custom').delete().eq('id', w.id);
+      if(error){ showToast("Xatolik: "+error.message); return; }
+      state.customHskWords = state.customHskWords.filter(x=>x.id!==w.id);
+      renderCustomHskWordList();
+      showToast("O'chirildi (sahifani yangilasangiz to'liq qo'llanadi)");
+    });
+    el.appendChild(row);
+  });
+}
+document.getElementById('addHskWordForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const hanzi = document.getElementById('hskWordHanzi').value.trim();
+  const pinyin = document.getElementById('hskWordPinyin').value.trim();
+  const meaning = document.getElementById('hskWordMeaning').value.trim();
+  const level = Number(document.getElementById('hskWordLevel').value);
+  if(!hanzi || !pinyin || !meaning) return;
+  const {data, error} = await sb.from('hsk_words_custom').insert({
+    hanzi, pinyin, meaning, level, created_by: state.user.id
+  }).select().single();
+  if(error){ showToast("Xatolik: "+error.message); return; }
+  state.customHskWords.push(data);
+  HSK_DATA.push([data.hanzi, data.pinyin, data.meaning, data.level]);
+  e.target.reset();
+  renderCustomHskWordList();
+  showToast("So'z qo'shildi");
+});
+
+// ============================================================
 // DASHBOARD
 // ============================================================
+function isLevelAllowed(lvl){
+  if(!state.profile) return true;
+  if(state.profile.role === 'admin') return true;
+  const allowed = state.profile.allowed_hsk_levels || [1,2,3,4,5,6];
+  return allowed.includes(lvl);
+}
 function renderDashboard(){
   const grid = document.getElementById('hskGrid');
   grid.innerHTML = '';
   for(let lvl=1; lvl<=6; lvl++){
     const total = HSK_DATA.filter(w=>w[3]===lvl).length;
     const due = hskDueCount(lvl);
+    const allowed = isLevelAllowed(lvl);
     const div = document.createElement('div');
-    div.className = 'deck-card';
-    div.innerHTML = `${due>0?`<span class="due-dot">${due}</span>`:''}
+    div.className = 'deck-card' + (allowed ? '' : ' locked');
+    div.innerHTML = `${allowed ? (due>0?`<span class="due-dot">${due}</span>`:'') : `<span class="lock-tag">🔒</span>`}
       <div class="dk-name">HSK ${lvl}</div>
-      <div class="dk-sub">${LEVEL_NAMES[lvl]} · ${total} so'z</div>`;
-    div.addEventListener('click', ()=> startHskStudy(lvl));
+      <div class="dk-sub">${LEVEL_NAMES[lvl]} · ${total} so'z${allowed ? '' : ' · yopiq'}</div>`;
+    div.addEventListener('click', ()=>{
+      if(!allowed){ showToast("Bu daraja administrator tomonidan yopilgan"); return; }
+      startHskStudy(lvl);
+    });
     grid.appendChild(div);
   }
   renderCustomDecks('customDeckList');
@@ -242,11 +307,13 @@ function renderCustomDecks(containerId){
     const due = deckDueCount(deck.id);
     const row = document.createElement('div');
     row.className = 'custom-deck-row';
+    row.style.cursor = 'pointer';
     row.innerHTML = `<div>
         <div class="name">${escapeHtml(deck.name)}</div>
         <div class="meta">${cardCount} karta${due>0?` · ${due} ta o'rganish kutmoqda`:''}</div>
-      </div>`;
-    row.querySelector('.name').addEventListener('click', ()=>{ switchTab('decks'); openDeckDetail(deck); });
+      </div>
+      <span style="color:var(--ink-faint);font-size:16px;">→</span>`;
+    row.addEventListener('click', ()=>{ switchTab('decks'); openDeckDetail(deck); });
     el.appendChild(row);
   });
 }
@@ -273,12 +340,26 @@ function showDeckListView(){
 }
 function openDeckDetail(deck){
   state.currentDeck = deck;
+  cancelEditCard();
   document.getElementById('deckListView').classList.add('hidden');
   document.getElementById('deckDetailView').classList.remove('hidden');
   document.getElementById('deckDetailName').textContent = deck.name;
   renderCardListInDeck();
 }
 document.getElementById('backToDeckList').addEventListener('click', showDeckListView);
+document.getElementById('renameDeckBtn').addEventListener('click', async ()=>{
+  const name = prompt("Yangi nom:", state.currentDeck.name);
+  if(!name || !name.trim() || name.trim()===state.currentDeck.name) return;
+  const {data, error} = await sb.from('decks').update({name: name.trim()}).eq('id', state.currentDeck.id).select().single();
+  if(error){ showToast("Xatolik: "+error.message); return; }
+  state.currentDeck.name = data.name;
+  const idx = state.decks.findIndex(d=>d.id===data.id);
+  if(idx>=0) state.decks[idx] = data;
+  document.getElementById('deckDetailName').textContent = data.name;
+  renderCustomDecks('customDeckList2');
+  renderDashboard();
+  showToast("Nom yangilandi");
+});
 
 function renderCardListInDeck(){
   const cards = state.cardsByDeck.get(state.currentDeck.id) || [];
@@ -289,8 +370,13 @@ function renderCardListInDeck(){
     const row = document.createElement('div');
     row.className = 'card-row';
     row.innerHTML = `<div><span class="cf">${escapeHtml(c.front)}</span> — <span class="cb">${escapeHtml(c.back)}</span></div>
-      <button class="x-btn" title="O'chirish">&times;</button>`;
+      <div class="row-actions">
+        <button class="edit-btn" title="Tahrirlash">✎</button>
+        <button class="x-btn" title="O'chirish">&times;</button>
+      </div>`;
+    row.querySelector('.edit-btn').addEventListener('click', ()=> startEditCard(c));
     row.querySelector('.x-btn').addEventListener('click', async ()=>{
+      if(!confirm("Bu karta o'chirilsinmi?")) return;
       const {error} = await sb.from('cards').delete().eq('id', c.id);
       if(error){ showToast("Xatolik: "+error.message); return; }
       state.cardsByDeck.set(state.currentDeck.id, cards.filter(x=>x.id!==c.id));
@@ -299,6 +385,27 @@ function renderCardListInDeck(){
     el.appendChild(row);
   });
 }
+
+let editingCardId = null;
+function startEditCard(c){
+  editingCardId = c.id;
+  document.getElementById('cardFront').value = c.front || '';
+  document.getElementById('cardBack').value = c.back || '';
+  document.getElementById('cardHanzi').value = c.hanzi || '';
+  document.getElementById('cardPinyin').value = c.pinyin || '';
+  document.getElementById('cardFormLabel').textContent = 'Kartani tahrirlash';
+  document.getElementById('cardFormSubmitBtn').textContent = 'Yangilash';
+  document.getElementById('cancelEditCardBtn').classList.remove('hidden');
+  document.getElementById('cardFront').scrollIntoView({behavior:'smooth', block:'center'});
+}
+function cancelEditCard(){
+  editingCardId = null;
+  document.getElementById('addCardForm').reset();
+  document.getElementById('cardFormLabel').textContent = "Karta qo'shish";
+  document.getElementById('cardFormSubmitBtn').textContent = "Qo'shish";
+  document.getElementById('cancelEditCardBtn').classList.add('hidden');
+}
+document.getElementById('cancelEditCardBtn').addEventListener('click', cancelEditCard);
 document.getElementById('addCardForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const front = document.getElementById('cardFront').value.trim();
@@ -306,16 +413,29 @@ document.getElementById('addCardForm').addEventListener('submit', async (e)=>{
   const hanzi = document.getElementById('cardHanzi').value.trim();
   const pinyin = document.getElementById('cardPinyin').value.trim();
   if(!front || !back) return;
-  const {data, error} = await sb.from('cards').insert({
-    deck_id: state.currentDeck.id, front, back, hanzi: hanzi||null, pinyin: pinyin||null
-  }).select().single();
-  if(error){ showToast("Xatolik: "+error.message); return; }
   const arr = state.cardsByDeck.get(state.currentDeck.id) || [];
-  arr.push(data);
-  state.cardsByDeck.set(state.currentDeck.id, arr);
-  e.target.reset();
-  renderCardListInDeck();
-  showToast("Karta qo'shildi");
+  if(editingCardId){
+    const {data, error} = await sb.from('cards').update({
+      front, back, hanzi: hanzi||null, pinyin: pinyin||null
+    }).eq('id', editingCardId).select().single();
+    if(error){ showToast("Xatolik: "+error.message); return; }
+    const idx = arr.findIndex(c=>c.id===editingCardId);
+    if(idx>=0) arr[idx] = data;
+    state.cardsByDeck.set(state.currentDeck.id, arr);
+    cancelEditCard();
+    renderCardListInDeck();
+    showToast("Karta yangilandi");
+  }else{
+    const {data, error} = await sb.from('cards').insert({
+      deck_id: state.currentDeck.id, front, back, hanzi: hanzi||null, pinyin: pinyin||null
+    }).select().single();
+    if(error){ showToast("Xatolik: "+error.message); return; }
+    arr.push(data);
+    state.cardsByDeck.set(state.currentDeck.id, arr);
+    e.target.reset();
+    renderCardListInDeck();
+    showToast("Karta qo'shildi");
+  }
 });
 document.getElementById('deleteDeckBtn').addEventListener('click', async ()=>{
   if(!confirm("To'plam va undagi barcha kartalar o'chiriladi. Davom etasizmi?")) return;
@@ -621,6 +741,7 @@ async function flushOfflineQueue(){
 // STUDY (spaced repetition)
 // ============================================================
 function startHskStudy(level){
+  if(!isLevelAllowed(level)){ showToast("Bu daraja administrator tomonidan yopilgan"); return; }
   const words = HSK_DATA.filter(w=>w[3]===level);
   const due = [];
   words.forEach(w=>{

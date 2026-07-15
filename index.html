@@ -9,6 +9,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Flashcards">
+<link rel="apple-touch-icon" href="icon-256.png">
+<link rel="icon" href="icon-256.png">
 <style>
 :root{
   --paper:#F5F3EE; --surface:#FFFFFF;
@@ -78,6 +80,8 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
 .deck-card .dk-name{font-size:13.5px;font-weight:600;}
 .deck-card .dk-sub{font-size:11px;color:var(--ink-faint);margin-top:3px;}
 .deck-card .due-dot{position:absolute;top:10px;right:10px;background:var(--bad);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 5px;}
+.deck-card.locked{cursor:not-allowed;opacity:.5;}
+.deck-card .lock-tag{position:absolute;top:10px;right:10px;font-size:13px;color:var(--ink-faint);}
 .custom-deck-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);margin-bottom:8px;}
 .custom-deck-row .name{font-weight:600;font-size:14px;cursor:pointer;}
 .custom-deck-row .meta{font-size:11.5px;color:var(--ink-faint);}
@@ -110,6 +114,9 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
 .card-row .cb{color:var(--ink-faint);}
 .x-btn{background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:16px;padding:2px 6px;}
 .x-btn:hover{color:var(--bad);}
+.edit-btn{background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:13px;padding:2px 6px;}
+.edit-btn:hover{color:var(--accent);}
+.row-actions{display:flex;align-items:center;gap:2px;flex-shrink:0;}
 
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:all .25s ease;z-index:80;font-weight:600;}
 .banner{background:var(--warn-soft);color:var(--warn);border-radius:var(--radius);padding:12px 14px;font-size:13px;margin-bottom:16px;}
@@ -189,6 +196,7 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
         <button class="navbtn active" data-tab="dashboard">Bosh sahifa</button>
         <button class="navbtn" data-tab="decks">To'plamlar</button>
         <button class="navbtn" data-tab="profil">Profil</button>
+        <button class="navbtn ghost hidden" id="hskManageLink" data-tab="hskmanage">HSK boshqaruvi</button>
         <a id="adminLink" href="admin.html" class="navbtn ghost hidden">Admin</a>
         <button class="navbtn ghost" id="logoutBtn">Chiqish</button>
       </div>
@@ -217,16 +225,20 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
         <h2 id="deckDetailName"></h2>
         <div class="btn-row" style="margin:10px 0 20px;">
           <button class="btn" id="studyThisDeckBtn">O'rganish</button>
+          <button class="btn secondary" id="renameDeckBtn">Nomini o'zgartirish</button>
           <button class="btn danger" id="deleteDeckBtn">To'plamni o'chirish</button>
         </div>
         <div class="card" style="margin-bottom:16px;">
-          <p class="section-label" style="margin-bottom:12px;">Karta qo'shish</p>
+          <p class="section-label" style="margin-bottom:12px;" id="cardFormLabel">Karta qo'shish</p>
           <form id="addCardForm">
             <div class="field"><label>Old tomon (savol)</label><input id="cardFront" required></div>
             <div class="field"><label>Orqa tomon (javob)</label><input id="cardBack" required></div>
             <div class="field"><label>Ieroglif (ixtiyoriy — yozish katagi ko'rsatiladi)</label><input id="cardHanzi"></div>
             <div class="field"><label>Pinyin (ixtiyoriy)</label><input id="cardPinyin"></div>
-            <button type="submit" class="btn" style="margin-top:14px;">Qo'shish</button>
+            <div class="btn-row" style="margin-top:14px;">
+              <button type="submit" class="btn" id="cardFormSubmitBtn">Qo'shish</button>
+              <button type="button" class="btn secondary hidden" id="cancelEditCardBtn">Bekor qilish</button>
+            </div>
           </form>
         </div>
         <div class="btn-row" style="margin-bottom:16px;">
@@ -270,6 +282,29 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
           </label>
         </div>
       </div>
+    </div>
+
+    <!-- HSK BOSHQARUVI TAB (faqat muharrirlar/admin uchun) -->
+    <div id="tab-hskmanage" class="tabpanel hidden">
+      <div class="card" style="margin-bottom:16px;">
+        <p class="section-label" style="margin-bottom:6px;">Yangi so'z qo'shish</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;">Bu yerda qo'shgan so'zlaringiz barcha foydalanuvchilarga ko'rinadi.</p>
+        <form id="addHskWordForm">
+          <div class="field"><label>Ieroglif</label><input id="hskWordHanzi" required></div>
+          <div class="field"><label>Pinyin</label><input id="hskWordPinyin" required></div>
+          <div class="field"><label>Ma'nosi (o'zbekcha)</label><input id="hskWordMeaning" required></div>
+          <div class="field">
+            <label>HSK darajasi</label>
+            <select id="hskWordLevel">
+              <option value="1">HSK 1</option><option value="2">HSK 2</option><option value="3">HSK 3</option>
+              <option value="4">HSK 4</option><option value="5">HSK 5</option><option value="6">HSK 6</option>
+            </select>
+          </div>
+          <button type="submit" class="btn" style="margin-top:14px;">Qo'shish</button>
+        </form>
+      </div>
+      <p class="section-label">Qo'shilgan so'zlar</p>
+      <div id="customHskWordList"></div>
     </div>
 
     <!-- STUDY TAB -->
