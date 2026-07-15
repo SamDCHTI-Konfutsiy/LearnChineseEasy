@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>汉字课 · Flashcards</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4F46D6">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Flashcards">
 <style>
 :root{
   --paper:#F5F3EE; --surface:#FFFFFF;
@@ -81,11 +86,12 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
 .study-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
 .study-meta{font-size:12px;color:var(--ink-faint);}
 .card-stage{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;box-shadow:var(--shadow);}
-.tzg{position:relative;width:100px;height:100px;border:1.5px solid var(--ink-faint);margin:0 auto 10px;}
+.tzg{position:relative;width:100px;height:100px;border:1.5px solid var(--ink-faint);margin:0;cursor:pointer;flex-shrink:0;}
 .tzg::before,.tzg::after{content:"";position:absolute;background-image:linear-gradient(90deg,var(--ink-faint) 40%,transparent 0%);background-size:6px 1px;background-repeat:repeat-x;}
 .tzg::before{left:0;right:0;top:50%;height:1px;}
 .tzg::after{top:0;bottom:0;left:50%;width:1px;background-image:linear-gradient(var(--ink-faint) 40%,transparent 0%);background-size:1px 6px;background-repeat:repeat-y;}
 .tzg span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--cjk);font-size:56px;line-height:1;color:var(--ink);}
+.tzg-row{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;margin:0 auto 10px;}
 .front-text{font-size:22px;font-weight:600;text-align:center;}
 .pinyin-text{font-family:var(--sans);font-size:16px;color:var(--accent);margin-top:10px;font-weight:600;}
 .back-text{font-size:16px;color:var(--ink-soft);margin-top:8px;text-align:center;}
@@ -109,6 +115,30 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
 .banner{background:var(--warn-soft);color:var(--warn);border-radius:var(--radius);padding:12px 14px;font-size:13px;margin-bottom:16px;}
 .blocked-box{max-width:400px;margin:80px auto;text-align:center;}
 .blocked-box .icon{font-size:32px;}
+
+/* speaker button */
+.speak-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--accent);cursor:pointer;font-size:15px;margin-top:8px;}
+.speak-btn:hover{background:var(--accent-soft);}
+.tts-hint{font-size:10.5px;color:var(--ink-faint);margin-top:4px;max-width:260px;text-align:center;}
+
+/* hanzi modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(20,20,24,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--surface);border-radius:10px;width:100%;max-width:480px;max-height:86vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);}
+.modal-head h3{margin:0;font-family:var(--cjk);font-size:20px;}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink-faint);}
+.modal-body{flex:1;min-height:340px;position:relative;}
+.modal-body iframe{width:100%;height:420px;border:0;display:block;}
+.modal-fallback{display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:30px;text-align:center;color:var(--ink-soft);font-size:13px;}
+.modal-foot{padding:10px 16px;border-top:1px solid var(--line);text-align:right;}
+
+/* profil tab */
+.settings-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line-soft);}
+.settings-row:last-child{border-bottom:none;}
+.file-btn{display:inline-block;}
+.offline-banner{background:var(--warn-soft);color:var(--warn);border-radius:var(--radius);padding:10px 14px;font-size:12.5px;margin-bottom:16px;display:none;align-items:center;gap:8px;}
+.offline-banner.show{display:flex;}
 </style>
 </head>
 <body>
@@ -158,10 +188,12 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
       <div class="topnav">
         <button class="navbtn active" data-tab="dashboard">Bosh sahifa</button>
         <button class="navbtn" data-tab="decks">To'plamlar</button>
+        <button class="navbtn" data-tab="profil">Profil</button>
         <a id="adminLink" href="admin.html" class="navbtn ghost hidden">Admin</a>
         <button class="navbtn ghost" id="logoutBtn">Chiqish</button>
       </div>
     </div>
+    <div class="offline-banner" id="offlineBanner">📡 Internet yo'q — offline rejimda ishlayapsiz. Natijalar internet qaytganda saqlanadi.</div>
 
     <!-- DASHBOARD TAB -->
     <div id="tab-dashboard" class="tabpanel">
@@ -197,8 +229,46 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
             <button type="submit" class="btn" style="margin-top:14px;">Qo'shish</button>
           </form>
         </div>
+        <div class="btn-row" style="margin-bottom:16px;">
+          <button class="btn secondary" id="exportDeckCsvBtn">CSV eksport</button>
+          <label class="btn secondary file-btn">CSV import
+            <input type="file" id="importDeckCsv" accept=".csv" style="display:none;">
+          </label>
+        </div>
         <p class="section-label">Kartalar</p>
         <div id="cardListInDeck"></div>
+      </div>
+    </div>
+
+    <!-- PROFIL TAB -->
+    <div id="tab-profil" class="tabpanel hidden">
+      <div class="card" style="margin-bottom:16px;">
+        <p class="section-label" style="margin-bottom:6px;">Ovoz sozlamalari (TTS)</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;">Ierogliflarni o'qiydigan ovozni tanlang. "Mahalliy/offline" deb belgilanganlari internetsiz ham ishlaydi, "Internet talab qiladi" deganlari tarmoqqa muhtoj lekin ko'pincha sifatliroq bo'ladi.</p>
+        <div class="field">
+          <label>Xitoycha ovoz</label>
+          <select id="voiceSelect"></select>
+        </div>
+        <button class="btn secondary" id="testVoiceBtn" style="margin-top:10px;">Sinab ko'rish (你好)</button>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <p class="section-label" style="margin-bottom:12px;">Parolni o'zgartirish</p>
+        <form id="changePasswordForm">
+          <div class="field"><label>Yangi parol</label><input type="password" id="newPassword" minlength="6" required autocomplete="new-password"></div>
+          <div class="field"><label>Yangi parolni tasdiqlang</label><input type="password" id="newPassword2" minlength="6" required autocomplete="new-password"></div>
+          <button type="submit" class="btn" style="margin-top:14px;">Parolni yangilash</button>
+          <div class="err-msg" id="pwErr"></div>
+        </form>
+      </div>
+      <div class="card">
+        <p class="section-label" style="margin-bottom:6px;">To'liq zaxira</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;">To'plamlaringiz, kartalaringiz va o'rganish natijalaringizni JSON fayl sifatida yuklab oling yoki tiklang.</p>
+        <div class="btn-row">
+          <button class="btn secondary" id="exportBackupBtn">JSON zaxira yuklab olish</button>
+          <label class="btn secondary file-btn">JSON'dan tiklash
+            <input type="file" id="importBackupJson" accept=".json" style="display:none;">
+          </label>
+        </div>
       </div>
     </div>
 
@@ -212,6 +282,26 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
     </div>
   </div>
 
+  <!-- HANZI YOZILISH OYNASI -->
+  <div class="modal-overlay" id="hanziModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="hzModalChar"></h3>
+        <button class="modal-close" id="hzModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <iframe id="hzModalFrame" src="about:blank" title="Ieroglif yozilish tartibi"></iframe>
+        <div class="modal-fallback" id="hzModalFallback">
+          <p>Bu ierogliflarni saytda ko'rsatib bo'lmadi.</p>
+          <a id="hzModalOpenNew" href="#" target="_blank" rel="noopener" class="btn secondary">Yangi tabda ochish</a>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <a id="hzModalOpenNew2" href="#" target="_blank" rel="noopener" style="font-size:12.5px;">Yangi tabda ochish ↗</a>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 </div>
 
@@ -219,5 +309,12 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
 <script src="config.js"></script>
 <script src="hsk-data.js"></script>
 <script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* offline-first app baribir ishlayveradi */ });
+  });
+}
+</script>
 </body>
 </html>

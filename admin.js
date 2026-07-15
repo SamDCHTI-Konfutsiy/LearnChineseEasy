@@ -35,19 +35,28 @@ async function loadUsers(){
       <td>${esc(u.email)}${u.role==='admin' ? '<span class="badge role-admin">admin</span>' : ''}</td>
       <td>${fmtDate(u.created_at)}</td>
       <td><span class="badge ${u.is_active ? 'active':'inactive'}">${u.is_active ? 'Faol':'Bloklangan'}</span></td>
-      <td></td>`;
-    const actionTd = tr.querySelector('td:last-child');
-    const btn = document.createElement('button');
+      <td class="actions-cell"></td>`;
+    const actionTd = tr.querySelector('.actions-cell');
+
+    const toggleBtn = document.createElement('button');
     if(u.id === currentUserId){
-      btn.textContent = "O'zingiz";
-      btn.className = 'toggle-btn';
-      btn.disabled = true;
+      toggleBtn.textContent = "O'zingiz";
+      toggleBtn.className = 'toggle-btn';
+      toggleBtn.disabled = true;
     }else{
-      btn.textContent = u.is_active ? 'Bloklash' : 'Faollashtirish';
-      btn.className = 'toggle-btn ' + (u.is_active ? 'make-inactive' : 'make-active');
-      btn.addEventListener('click', ()=> toggleActive(u));
+      toggleBtn.textContent = u.is_active ? 'Bloklash' : 'Faollashtirish';
+      toggleBtn.className = 'toggle-btn ' + (u.is_active ? 'make-inactive' : 'make-active');
+      toggleBtn.addEventListener('click', ()=> toggleActive(u));
     }
-    actionTd.appendChild(btn);
+    actionTd.appendChild(toggleBtn);
+
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = 'Parol tiklash';
+    resetBtn.className = 'toggle-btn';
+    resetBtn.style.marginLeft = '6px';
+    resetBtn.addEventListener('click', ()=> resetPassword(u));
+    actionTd.appendChild(resetBtn);
+
     tbody.appendChild(tr);
   });
 }
@@ -57,6 +66,32 @@ async function toggleActive(user){
   const {error} = await sb.from('profiles').update({is_active: newVal}).eq('id', user.id);
   if(error){ alert('Xatolik: '+error.message); return; }
   await loadUsers();
+}
+
+// ============================================================
+// PAROLNI TIKLASH: eski parolni hech kim ko'rmaydi (u umuman
+// saqlanmaydi) — bu faqat YANGI parol o'rnatadi.
+// ============================================================
+async function resetPassword(user){
+  if(!ADMIN_ACTIONS_WORKER_URL){
+    alert("Bu funksiya uchun admin-actions-worker.js hali sozlanmagan. config.js dagi ADMIN_ACTIONS_WORKER_URL'ni to'ldiring.");
+    return;
+  }
+  const newPass = prompt(`${user.email} uchun yangi parol kiriting (kamida 6 belgi):`);
+  if(!newPass) return;
+  if(newPass.length < 6){ alert("Parol kamida 6 ta belgidan iborat bo'lishi kerak."); return; }
+  const {data:{session}} = await sb.auth.getSession();
+  try{
+    const resp = await fetch(ADMIN_ACTIONS_WORKER_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json', 'Authorization':'Bearer '+session.access_token},
+      body: JSON.stringify({action:'reset_password', target_user_id: user.id, new_password: newPass}),
+    });
+    if(!resp.ok){ const t = await resp.text(); throw new Error(t); }
+    alert(`${user.email} uchun parol muvaffaqiyatli yangilandi.`);
+  }catch(err){
+    alert('Xatolik: '+err.message);
+  }
 }
 
 init();

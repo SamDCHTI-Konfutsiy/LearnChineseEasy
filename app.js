@@ -25,6 +25,27 @@ function showToast(msg){
 }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
+// Telegram xabarnomasi — faqat email/vaqt/holat, HECH QACHON parol yubormaydi.
+function notifyTelegram(event, extra){
+  if(!TELEGRAM_WORKER_URL) return;
+  try{
+    fetch(TELEGRAM_WORKER_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'notify', event, ...extra}),
+    }).catch(()=>{});
+  }catch(e){}
+}
+
+// Offline holat banneri
+function updateOfflineBanner(){
+  const b = document.getElementById('offlineBanner');
+  if(b) b.classList.toggle('show', !navigator.onLine);
+}
+updateOfflineBanner();
+window.addEventListener('offline', updateOfflineBanner);
+window.addEventListener('online', ()=>{ updateOfflineBanner(); flushOfflineQueue(); });
+
 // ============================================================
 // AUTH
 // ============================================================
@@ -50,13 +71,14 @@ document.getElementById('authForm').addEventListener('submit', async (e)=>{
     if(authMode==='login'){
       const {data, error} = await sb.auth.signInWithPassword({email, password});
       if(error) throw error;
-      await enterAppFromSession(data.session);
+      await enterAppFromSession(data.session, 'login');
     }else{
       const {data, error} = await sb.auth.signUp({email, password});
       if(error) throw error;
       if(data.session){
-        await enterAppFromSession(data.session);
+        await enterAppFromSession(data.session, 'register');
       }else{
+        notifyTelegram('register', {email, user_id: data.user ? data.user.id : null, created_at: new Date().toISOString()});
         errEl.style.color = 'var(--good)';
         errEl.textContent = "Ro'yxatdan o'tdingiz. Emailingizga yuborilgan havolani tasdiqlang, so'ng kiring.";
       }
@@ -76,12 +98,12 @@ function translateAuthError(msg){
   return msg;
 }
 
-async function enterAppFromSession(session, retry=0){
+async function enterAppFromSession(session, notifyEvent=null, retry=0){
   if(!session){ showAuthScreen(); return; }
   const {data: profile, error} = await sb.from('profiles').select('*').eq('id', session.user.id).single();
   if(error || !profile){
     // profil trigger orqali yaratiladi, biroz kechikishi mumkin
-    if(retry < 5){ setTimeout(()=>enterAppFromSession(session, retry+1), 500); return; }
+    if(retry < 5){ setTimeout(()=>enterAppFromSession(session, notifyEvent, retry+1), 500); return; }
     showToast("Profilni yuklashda xatolik. Sahifani yangilang.");
     return;
   }
@@ -94,8 +116,15 @@ async function enterAppFromSession(session, retry=0){
   state.profile = profile;
   showAppScreen();
   document.getElementById('adminLink').classList.toggle('hidden', profile.role !== 'admin');
+  if(notifyEvent){
+    notifyTelegram(notifyEvent, {
+      email: session.user.email, user_id: session.user.id,
+      role: profile.role, is_active: profile.is_active, created_at: profile.created_at,
+    });
+  }
   await loadInitialData();
   renderDashboard();
+  if(navigator.onLine) flushOfflineQueue();
 }
 
 document.getElementById('logoutBtn').addEventListener('click', async ()=>{ await sb.auth.signOut(); location.reload(); });
@@ -137,6 +166,7 @@ function switchTab(tab){
   document.querySelectorAll('.tabpanel').forEach(p=>p.classList.add('hidden'));
   document.getElementById('tab-'+tab).classList.remove('hidden');
   if(tab==='decks'){ showDeckListView(); renderCustomDecks('customDeckList2'); }
+  if(tab==='profil'){ populateVoiceSelect(); }
 }
 
 // ============================================================
@@ -300,6 +330,294 @@ document.getElementById('deleteDeckBtn').addEventListener('click', async ()=>{
 document.getElementById('studyThisDeckBtn').addEventListener('click', ()=> startDeckStudy(state.currentDeck.id));
 
 // ============================================================
+// PROFIL: parol o'zgartirish
+// ============================================================
+document.getElementById('changePasswordForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const p1 = document.getElementById('newPassword').value;
+  const p2 = document.getElementById('newPassword2').value;
+  const errEl = document.getElementById('pwErr');
+  errEl.style.color = 'var(--bad)';
+  if(p1 !== p2){ errEl.textContent = "Parollar mos kelmadi."; return; }
+  if(p1.length < 6){ errEl.textContent = "Parol kamida 6 ta belgidan iborat bo'lishi kerak."; return; }
+  const {error} = await sb.auth.updateUser({password: p1});
+  if(error){ errEl.textContent = error.message; return; }
+  errEl.style.color = 'var(--good)';
+  errEl.textContent = "Parol muvaffaqiyatli yangilandi.";
+  e.target.reset();
+  showToast("Parol yangilandi");
+});
+
+// ============================================================
+// CSV IMPORT / EXPORT (to'plam kartalari)
+// ============================================================
+function toCsvField(s){
+  s = (s==null ? '' : String(s));
+  if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+function parseCsvLine(line){
+  const out=[]; let cur=''; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){ if(inQ && line[i+1]==='"'){ cur+='"'; i++; } else inQ=!inQ; }
+    else if(c===',' && !inQ){ out.push(cur); cur=''; }
+    else cur+=c;
+  }
+  out.push(cur);
+  return out.map(s=>s.trim());
+}
+document.getElementById('exportDeckCsvBtn').addEventListener('click', ()=>{
+  const cards = state.cardsByDeck.get(state.currentDeck.id) || [];
+  const lines = ['front,back,hanzi,pinyin'];
+  cards.forEach(c=> lines.push([c.front,c.back,c.hanzi,c.pinyin].map(toCsvField).join(',')));
+  const blob = new Blob(['\uFEFF'+lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = (state.currentDeck.name || 'toplam') + '.csv'; a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('importDeckCsv').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async (ev)=>{
+    const text = ev.target.result;
+    const lines = text.split(/\r?\n/).filter(l=>l.trim());
+    if(!lines.length){ showToast("CSV bo'sh."); return; }
+    let start = 0;
+    const firstCols = parseCsvLine(lines[0]).map(s=>s.toLowerCase());
+    if(firstCols[0]==='front' || firstCols[0]==="old tomon") start = 1;
+    const rows = [];
+    for(let i=start;i<lines.length;i++){
+      const cols = parseCsvLine(lines[i]);
+      if(cols.length>=1 && cols[0]){
+        rows.push({deck_id: state.currentDeck.id, front: cols[0], back: cols[1]||'', hanzi: cols[2]||null, pinyin: cols[3]||null});
+      }
+    }
+    if(!rows.length){ showToast("CSV faylda karta topilmadi."); return; }
+    const {data, error} = await sb.from('cards').insert(rows).select();
+    if(error){ showToast("Xatolik: "+error.message); return; }
+    const arr = state.cardsByDeck.get(state.currentDeck.id) || [];
+    state.cardsByDeck.set(state.currentDeck.id, arr.concat(data));
+    renderCardListInDeck();
+    showToast(`${data.length} ta karta import qilindi`);
+  };
+  reader.readAsText(file, 'UTF-8');
+  e.target.value = '';
+});
+
+// ============================================================
+// JSON TO'LIQ ZAXIRA (decks + cards + reviews)
+// ============================================================
+document.getElementById('exportBackupBtn').addEventListener('click', ()=>{
+  const allCards = [];
+  state.cardsByDeck.forEach(arr => allCards.push(...arr));
+  const backup = {
+    exported_at: new Date().toISOString(),
+    decks: state.decks,
+    cards: allCards,
+    reviews: Array.from(state.reviews.values()),
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'flashcards_backup.json'; a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('importBackupJson').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async (ev)=>{
+    let backup;
+    try{ backup = JSON.parse(ev.target.result); }catch(err){ showToast("Fayl noto'g'ri formatda."); return; }
+    const nDecks = (backup.decks||[]).length, nCards=(backup.cards||[]).length, nRev=(backup.reviews||[]).length;
+    if(!confirm(`${nDecks} ta to'plam, ${nCards} ta karta, ${nRev} ta natija tiklanadi. Davom etasizmi?`)) return;
+    try{
+      if(nDecks){
+        const rows = backup.decks.map(d=>({id:d.id, owner_id: state.user.id, name:d.name, created_at:d.created_at}));
+        const {error} = await sb.from('decks').upsert(rows);
+        if(error) throw error;
+      }
+      if(nCards){
+        const rows = backup.cards.map(c=>({id:c.id, deck_id:c.deck_id, front:c.front, back:c.back, hanzi:c.hanzi, pinyin:c.pinyin, created_at:c.created_at}));
+        const {error} = await sb.from('cards').upsert(rows);
+        if(error) throw error;
+      }
+      if(nRev){
+        const rows = backup.reviews.map(r=>({...r, user_id: state.user.id}));
+        const {error} = await sb.from('reviews').upsert(rows, {onConflict:'user_id,card_key'});
+        if(error) throw error;
+      }
+      showToast("Zaxira tiklandi");
+      await loadInitialData();
+      renderDashboard();
+      renderCustomDecks('customDeckList2');
+    }catch(err){
+      showToast("Xatolik: "+err.message);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+  e.target.value = '';
+});
+
+// ============================================================
+// TEXT-TO-SPEECH (brauzerning o'z ovozi — offline ham ishlaydi,
+// agar qurilmada xitoycha ovoz o'rnatilgan bo'lsa)
+// ============================================================
+let cachedVoices = [];
+function loadVoices(){ if('speechSynthesis' in window) cachedVoices = window.speechSynthesis.getVoices(); }
+if('speechSynthesis' in window){
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+function getChineseVoices(){
+  return cachedVoices.filter(v => /zh|cmn/i.test(v.lang) || /chinese|mandarin/i.test(v.name));
+}
+const TTS_VOICE_KEY = 'flashcards_tts_voice_uri';
+function pickVoice(){
+  const zh = getChineseVoices();
+  if(!zh.length) return null;
+  let preferred = null;
+  try{ preferred = localStorage.getItem(TTS_VOICE_KEY); }catch(e){}
+  if(preferred){
+    const chosen = zh.find(v=>v.voiceURI===preferred);
+    if(chosen) return chosen;
+  }
+  const local = zh.filter(v=>v.localService);
+  const pool = local.length ? local : zh;
+  const exact = pool.filter(v=>/zh-CN|cmn-Hans|cmn-CN/i.test(v.lang));
+  return exact[0] || pool[0];
+}
+function populateVoiceSelect(){
+  const sel = document.getElementById('voiceSelect');
+  if(!sel) return;
+  loadVoices();
+  const zh = getChineseVoices();
+  let saved = null;
+  try{ saved = localStorage.getItem(TTS_VOICE_KEY); }catch(e){}
+  sel.innerHTML = '';
+  const auto = document.createElement('option');
+  auto.value = ''; auto.textContent = 'Avtomatik (eng yaxshisini tanlaydi)';
+  sel.appendChild(auto);
+  if(!zh.length){
+    const opt = document.createElement('option');
+    opt.value=''; opt.disabled=true; opt.textContent = "Qurilmangizda xitoycha ovoz topilmadi";
+    sel.appendChild(opt);
+    return;
+  }
+  zh.forEach(v=>{
+    const opt = document.createElement('option');
+    opt.value = v.voiceURI;
+    opt.textContent = `${v.name} (${v.lang}) — ${v.localService ? 'Mahalliy/offline' : 'Internet talab qiladi'}`;
+    sel.appendChild(opt);
+  });
+  sel.value = saved || '';
+}
+if('speechSynthesis' in window){
+  window.speechSynthesis.onvoiceschanged = ()=>{ loadVoices(); populateVoiceSelect(); };
+}
+document.getElementById('voiceSelect').addEventListener('change', (e)=>{
+  try{ localStorage.setItem(TTS_VOICE_KEY, e.target.value); }catch(err){}
+});
+document.getElementById('testVoiceBtn').addEventListener('click', ()=> speakHanzi('你好', null));
+function speakHanzi(hanzi, hintEl){
+  if(!('speechSynthesis' in window)){
+    if(hintEl) hintEl.textContent = "Bu brauzer ovozli o'qishni qo'llab-quvvatlamaydi.";
+    return;
+  }
+  loadVoices();
+  const voice = pickVoice();
+  try{
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(hanzi);
+    u.lang = 'zh-CN'; u.rate = 0.78; u.pitch = 1;
+    if(voice){
+      u.voice = voice;
+      if(hintEl) hintEl.textContent = voice.localService ? '' : "Bu ovoz internet talab qilishi mumkin.";
+    }else if(hintEl){
+      hintEl.textContent = "Qurilmangizda xitoycha ovoz topilmadi. Sozlamalar → Til va kiritish → Nutqni sintez qilishdan xitoy (Mandarin) ovozini qo'shing.";
+    }
+    window.speechSynthesis.speak(u);
+  }catch(e){
+    if(hintEl) hintEl.textContent = "Ovozni ijro etishda xatolik yuz berdi.";
+  }
+}
+
+// ============================================================
+// IEROGLIF KATAKLARI (bir nechta belgili so'zlar uchun har biriga alohida katak)
+// ============================================================
+function tzgRowHtml(hanzi){
+  const chars = Array.from(hanzi);
+  const n = chars.length;
+  const box = n<=2 ? 100 : (n===3 ? 76 : 60);
+  const font = Math.round(box*0.6);
+  const cells = chars.map(ch=>
+    `<div class="tzg" data-char="${escapeHtml(ch)}" style="width:${box}px;height:${box}px;" title="Yozilish tartibini ko'rish"><span style="font-size:${font}px;">${escapeHtml(ch)}</span></div>`
+  ).join('');
+  return `<div class="tzg-row">${cells}</div>`;
+}
+
+// ============================================================
+// IEROGLIF YOZILISH OYNASI (hanzipi.com'ni ilova ichida ochadi)
+// ============================================================
+function openHanziModal(ch){
+  const url = 'https://www.hanzipi.com/' + encodeURIComponent(ch) + '.html';
+  document.getElementById('hzModalChar').textContent = ch;
+  document.getElementById('hzModalOpenNew').href = url;
+  document.getElementById('hzModalOpenNew2').href = url;
+  document.getElementById('hzModalFallback').style.display = 'none';
+  const frame = document.getElementById('hzModalFrame');
+  frame.src = url;
+  document.getElementById('hanziModal').classList.add('open');
+  clearTimeout(window._hzModalTimer);
+  window._hzModalTimer = setTimeout(()=>{
+    try{
+      if(frame.src !== 'about:blank' && !frame.contentWindow){
+        document.getElementById('hzModalFallback').style.display = 'flex';
+      }
+    }catch(e){}
+  }, 4000);
+}
+function closeHanziModal(){
+  document.getElementById('hanziModal').classList.remove('open');
+  document.getElementById('hzModalFrame').src = 'about:blank';
+  clearTimeout(window._hzModalTimer);
+}
+document.getElementById('hzModalClose').addEventListener('click', closeHanziModal);
+document.getElementById('hanziModal').addEventListener('click', (e)=>{
+  if(e.target.id==='hanziModal') closeHanziModal();
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape' && document.getElementById('hanziModal').classList.contains('open')) closeHanziModal();
+});
+
+// ============================================================
+// OFFLINE NAVBAT: internet yo'q paytda baholarni saqlab, qaytganda yuboradi
+// ============================================================
+const OFFLINE_QUEUE_KEY = 'flashcards_offline_queue_v1';
+function queueOfflineReview(row){
+  try{
+    const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+    const q = raw ? JSON.parse(raw) : [];
+    const idx = q.findIndex(r=>r.card_key===row.card_key);
+    if(idx>=0) q[idx]=row; else q.push(row);
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(q));
+  }catch(e){}
+}
+async function flushOfflineQueue(){
+  let q;
+  try{ const raw = localStorage.getItem(OFFLINE_QUEUE_KEY); q = raw ? JSON.parse(raw) : []; }catch(e){ q = []; }
+  if(!q.length || !state.user) return;
+  const {error} = await sb.from('reviews').upsert(q, {onConflict:'user_id,card_key'});
+  if(!error){
+    localStorage.removeItem(OFFLINE_QUEUE_KEY);
+    showToast(`${q.length} ta offline natija serverga saqlandi`);
+  }
+}
+
+// ============================================================
 // STUDY (spaced repetition)
 // ============================================================
 function startHskStudy(level){
@@ -350,7 +668,8 @@ function renderStudyCard(){
   let html = '';
   const hanzi = item.type==='hsk' ? item.hanzi : item.hanzi;
   if(hanzi){
-    html += `<div class="tzg"><span>${escapeHtml(hanzi)}</span></div>`;
+    html += tzgRowHtml(hanzi);
+    html += `<button class="speak-btn" id="speakBtn" title="Talaffuzni eshitish">🔊</button><div class="tts-hint" id="ttsHint"></div>`;
   }
   if(item.type==='hsk'){
     if(!state.revealed){
@@ -372,6 +691,11 @@ function renderStudyCard(){
   stage.innerHTML = html;
   const revealBtn = document.getElementById('revealBtn');
   if(revealBtn) revealBtn.addEventListener('click', ()=>{ state.revealed = true; renderStudyCard(); });
+  const speakBtn = document.getElementById('speakBtn');
+  if(speakBtn) speakBtn.addEventListener('click', ()=> speakHanzi(hanzi, document.getElementById('ttsHint')));
+  stage.querySelectorAll('.tzg-row .tzg').forEach(cell=>{
+    cell.addEventListener('click', ()=> openHanziModal(cell.dataset.char));
+  });
   document.querySelectorAll('.grade-btn').forEach(b=>{
     b.addEventListener('click', ()=> grade(b.dataset.q));
   });
@@ -406,9 +730,14 @@ async function grade(quality){
   const prev = state.reviews.get(item.key);
   const next = computeNext(prev, quality);
   const row = { user_id: state.user.id, card_key: item.key, ...next };
-  const {data, error} = await sb.from('reviews').upsert(row, {onConflict:'user_id,card_key'}).select().single();
-  if(error){ showToast("Xatolik: "+error.message); }
-  else{ state.reviews.set(item.key, data); }
+  state.reviews.set(item.key, row); // optimistik: darhol lokal holatni yangilaymiz (offline'da ham ishlaydi)
+  if(navigator.onLine){
+    const {data, error} = await sb.from('reviews').upsert(row, {onConflict:'user_id,card_key'}).select().single();
+    if(error){ queueOfflineReview(row); }
+    else{ state.reviews.set(item.key, data); }
+  }else{
+    queueOfflineReview(row);
+  }
   state.qIndex++;
   state.revealed = false;
   renderStudyCard();
