@@ -4,7 +4,7 @@
 // Bular OCHIQ maydonlar, frontendga qo'yish uchun mo'ljallangan.
 // service_role kalitini HECH QACHON bu yerga qo'ymang.
 // ============================================================
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://edbgorsbsyxrbofbxuss.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkYmdvcnNic3l4cmJvZmJ4dXNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMTQzODgsImV4cCI6MjA5OTY5MDM4OH0.Q09GbMf5IwKGFaY9wFAeJW3KNMC7Mbbo0kAXxbT-als';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
