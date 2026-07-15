@@ -275,6 +275,42 @@ function isLevelAllowed(lvl){
   const allowed = state.profile.allowed_hsk_levels || [1,2,3,4,5,6];
   return allowed.includes(lvl);
 }
+function hskLearnedCount(level){
+  const words = HSK_DATA.filter(w=>w[3]===level);
+  let n = 0;
+  for(const w of words){
+    const r = state.reviews.get(hskKey(level, w[0], w[1]));
+    if(r && Number(r.reps) > 0) n++;
+  }
+  return n;
+}
+function computeStats(){
+  let totalLearned = 0, dueToday = 0;
+  const today = todayStr();
+  const daysSet = new Set();
+  state.reviews.forEach(r=>{
+    if(Number(r.reps) > 0) totalLearned++;
+    if(r.due_date <= today) dueToday++;
+    if(r.last_reviewed) daysSet.add(r.last_reviewed.slice(0,10));
+  });
+  let streak = 0;
+  let cursor = new Date();
+  if(!daysSet.has(today)) cursor = addDays(cursor, -1);
+  while(daysSet.has(cursor.toISOString().slice(0,10))){
+    streak++;
+    cursor = addDays(cursor, -1);
+  }
+  return { totalLearned, dueToday, streak };
+}
+function renderStats(){
+  const el = document.getElementById('statsRow');
+  if(!el) return;
+  const s = computeStats();
+  el.innerHTML = `
+    <div class="stat-box"><div class="num">${s.totalLearned}</div><div class="lbl">O'rganilgan so'z</div></div>
+    <div class="stat-box"><div class="num">${s.dueToday}</div><div class="lbl">Bugun kutmoqda</div></div>
+    <div class="stat-box"><div class="num">${s.streak}</div><div class="lbl">Ketma-ket kun</div></div>`;
+}
 function renderHskGrid(containerId){
   const grid = document.getElementById(containerId);
   if(!grid) return;
@@ -282,12 +318,15 @@ function renderHskGrid(containerId){
   for(let lvl=1; lvl<=6; lvl++){
     const total = HSK_DATA.filter(w=>w[3]===lvl).length;
     const due = hskDueCount(lvl);
+    const learned = hskLearnedCount(lvl);
+    const pct = total ? Math.round((learned/total)*100) : 0;
     const allowed = isLevelAllowed(lvl);
     const div = document.createElement('div');
     div.className = 'deck-card' + (allowed ? '' : ' locked');
     div.innerHTML = `${allowed ? (due>0?`<span class="due-dot">${due}</span>`:'') : `<span class="lock-tag">🔒</span>`}
       <div class="dk-name">HSK ${lvl}</div>
-      <div class="dk-sub">${LEVEL_NAMES[lvl]} · ${total} so'z${allowed ? '' : ' · yopiq'}</div>`;
+      <div class="dk-sub">${LEVEL_NAMES[lvl]} · ${total} so'z${allowed ? '' : ' · yopiq'}</div>
+      ${allowed ? `<div class="dk-bar"><i style="width:${pct}%;"></i></div>` : ''}`;
     div.addEventListener('click', ()=>{
       if(!allowed){ showToast("Bu daraja administrator tomonidan yopilgan"); return; }
       startHskStudy(lvl);
@@ -296,6 +335,7 @@ function renderHskGrid(containerId){
   }
 }
 function renderDashboard(){
+  renderStats();
   renderHskGrid('hskGrid');
   renderCustomDecks('customDeckList');
 }
@@ -312,12 +352,21 @@ function renderCustomDecks(containerId){
     const row = document.createElement('div');
     row.className = 'custom-deck-row';
     row.style.cursor = 'pointer';
-    row.innerHTML = `<div>
-        <div class="name">${escapeHtml(deck.name)}</div>
-        <div class="meta">${cardCount} karta${due>0?` · ${due} ta o'rganish kutmoqda`:''}</div>
-      </div>
-      <span style="color:var(--ink-faint);font-size:16px;">→</span>`;
-    row.addEventListener('click', ()=>{ switchTab('decks'); openDeckDetail(deck); });
+    if(deck.is_locked){
+      row.innerHTML = `<div>
+          <div class="name">${escapeHtml(deck.name)}</div>
+          <div class="meta">Administrator tomonidan yopilgan</div>
+        </div>
+        <span style="font-size:16px;">🔒</span>`;
+      row.addEventListener('click', ()=> showToast("Bu to'plam administrator tomonidan yopilgan"));
+    }else{
+      row.innerHTML = `<div>
+          <div class="name">${escapeHtml(deck.name)}</div>
+          <div class="meta">${cardCount} karta${due>0?` · ${due} ta o'rganish kutmoqda`:''}</div>
+        </div>
+        <span style="color:var(--ink-faint);font-size:16px;">→</span>`;
+      row.addEventListener('click', ()=>{ switchTab('decks'); openDeckDetail(deck); });
+    }
     el.appendChild(row);
   });
 }
@@ -343,6 +392,7 @@ function showDeckListView(){
   document.getElementById('deckDetailView').classList.add('hidden');
 }
 function openDeckDetail(deck){
+  if(deck.is_locked){ showToast("Bu to'plam administrator tomonidan yopilgan"); return; }
   state.currentDeck = deck;
   cancelEditCard();
   document.getElementById('deckListView').classList.add('hidden');
@@ -758,6 +808,8 @@ function startHskStudy(level){
   beginSession(due);
 }
 function startDeckStudy(deckId){
+  const deckObj = state.decks.find(d=>d.id===deckId);
+  if(deckObj && deckObj.is_locked){ showToast("Bu to'plam administrator tomonidan yopilgan"); return; }
   const cards = state.cardsByDeck.get(deckId) || [];
   const due = [];
   cards.forEach(c=>{

@@ -22,6 +22,7 @@ async function init(){
   document.getElementById('stateLoading').classList.add('hidden');
   document.getElementById('adminContent').classList.remove('hidden');
   await loadUsers();
+  await loadDecks();
 }
 
 async function loadUsers(){
@@ -152,3 +153,44 @@ async function resetPassword(user){
 }
 
 init();
+
+// ============================================================
+// BARCHA SHAXSIY TO'PLAMLAR (admin barchasini ko'rib, qulflay oladi)
+// ============================================================
+let profilesById = {};
+async function loadDecks(){
+  const {data: profiles} = await sb.from('profiles').select('id, email');
+  profilesById = {};
+  (profiles||[]).forEach(p=>{ profilesById[p.id] = p.email; });
+
+  const {data: decks, error} = await sb.from('decks').select('*').order('created_at', {ascending:false});
+  if(error){ document.getElementById('decksTbody').innerHTML = `<tr><td colspan="5" style="color:var(--ink-faint);">Yuklab bo'lmadi: ${esc(error.message)}</td></tr>`; return; }
+
+  const {data: cards} = await sb.from('cards').select('deck_id');
+  const countByDeck = {};
+  (cards||[]).forEach(c=>{ countByDeck[c.deck_id] = (countByDeck[c.deck_id]||0)+1; });
+
+  const tbody = document.getElementById('decksTbody');
+  if(!decks.length){ tbody.innerHTML = `<tr><td colspan="5" style="color:var(--ink-faint);">Hali hech kim to'plam yaratmagan.</td></tr>`; return; }
+  tbody.innerHTML = '';
+  decks.forEach(d=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(profilesById[d.owner_id] || d.owner_id)}</td>
+      <td>${esc(d.name)}</td>
+      <td>${countByDeck[d.id] || 0}</td>
+      <td><span class="badge ${d.is_locked ? 'inactive' : 'active'}">${d.is_locked ? 'Qulflangan' : 'Ochiq'}</span></td>
+      <td></td>`;
+    const actionTd = tr.querySelector('td:last-child');
+    const btn = document.createElement('button');
+    btn.textContent = d.is_locked ? 'Ochish' : 'Qulflash';
+    btn.className = 'toggle-btn ' + (d.is_locked ? 'make-active' : 'make-inactive');
+    btn.addEventListener('click', async ()=>{
+      const {error} = await sb.from('decks').update({is_locked: !d.is_locked}).eq('id', d.id);
+      if(error){ alert('Xatolik: '+error.message); return; }
+      await loadDecks();
+    });
+    actionTd.appendChild(btn);
+    tbody.appendChild(tr);
+  });
+}
