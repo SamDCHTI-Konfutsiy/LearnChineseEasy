@@ -3,8 +3,15 @@
 // Faqat statik fayllarni keshlaydi (Supabase so'rovlari internet
 // talab qiladi — foydalanuvchi ma'lumotlari xavfsizlik uchun
 // hech qachon keshlanmaydi).
+//
+// STRATEGIYA: NETWORK-FIRST
+// Avval tarmoqdan yangi faylni olishga harakat qilamiz, faqat
+// internet yo'q bo'lsa keshdagi (oxirgi saqlangan) versiyani beramiz.
+// Shunday qilib kod yangilanganda foydalanuvchi doim eng so'nggi
+// versiyani ko'radi, "yarim eski / yarim yangi" holat bo'lmaydi.
 // ============================================================
-const CACHE_NAME = 'flashcards-v1';
+const CACHE_VERSION = 'v2'; // Har safar sw.js ni o'zgartirganda bu raqamni oshiring
+const CACHE_NAME = `flashcards-${CACHE_VERSION}`;
 const APP_SHELL = [
   './',
   './index.html',
@@ -25,11 +32,12 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((names) =>
-      Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)))
-    )
+    caches.keys()
+      .then((names) =>
+        Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)))
+      )
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -39,19 +47,17 @@ self.addEventListener('fetch', (event) => {
   // to'g'ridan-to'g'ri tarmoqqa boradi (offline bo'lsa, o'zi xato beradi
   // va app.js buni ushlab, navbatga qo'yadi).
   if (url.origin !== self.location.origin) return;
+  if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((resp) => {
-          if (resp && resp.ok && event.request.method === 'GET') {
-            const clone = resp.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return resp;
-        })
-        .catch(() => cached);
-    })
+    fetch(event.request)
+      .then((resp) => {
+        if (resp && resp.ok) {
+          const clone = resp.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return resp;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
