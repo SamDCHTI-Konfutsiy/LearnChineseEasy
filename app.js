@@ -167,7 +167,7 @@ function switchTab(tab){
   document.querySelectorAll('.navbtn[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.tabpanel').forEach(p=>p.classList.add('hidden'));
   document.getElementById('tab-'+tab).classList.remove('hidden');
-  if(tab==='decks'){ showDeckListView(); renderCustomDecks('customDeckList2'); }
+  if(tab==='decks'){ showDeckListView(); renderHskGrid('hskGridDecks'); renderCustomDecks('customDeckList2'); }
   if(tab==='profil'){ populateVoiceSelect(); }
   if(tab==='hskmanage'){ renderCustomHskWordList(); }
 }
@@ -275,8 +275,9 @@ function isLevelAllowed(lvl){
   const allowed = state.profile.allowed_hsk_levels || [1,2,3,4,5,6];
   return allowed.includes(lvl);
 }
-function renderDashboard(){
-  const grid = document.getElementById('hskGrid');
+function renderHskGrid(containerId){
+  const grid = document.getElementById(containerId);
+  if(!grid) return;
   grid.innerHTML = '';
   for(let lvl=1; lvl<=6; lvl++){
     const total = HSK_DATA.filter(w=>w[3]===lvl).length;
@@ -293,6 +294,9 @@ function renderDashboard(){
     });
     grid.appendChild(div);
   }
+}
+function renderDashboard(){
+  renderHskGrid('hskGrid');
   renderCustomDecks('customDeckList');
 }
 function renderCustomDecks(containerId){
