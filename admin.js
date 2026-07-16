@@ -155,6 +155,54 @@ async function resetPassword(user){
 init();
 
 // ============================================================
+// BARCHAGA XABAR YUBORISH: ilova ichi e'lon (banner) va real push
+// ============================================================
+document.getElementById('sendAnnouncementBtn').addEventListener('click', async ()=>{
+  const text = document.getElementById('broadcastMessage').value.trim();
+  const statusEl = document.getElementById('broadcastStatus');
+  if(!text){ statusEl.textContent = "Avval xabar matnini kiriting."; statusEl.style.color = 'var(--bad)'; return; }
+  statusEl.textContent = 'Yuborilmoqda…'; statusEl.style.color = 'var(--ink-soft)';
+  try{
+    // eski faol e'lonlarni yopamiz — bir vaqtda faqat bitta faol e'lon bo'lsin
+    await sb.from('announcements').update({active:false}).eq('active', true);
+    const {error} = await sb.from('announcements').insert({message: text, created_by: currentUserId});
+    if(error) throw error;
+    statusEl.textContent = "E'lon qilindi — foydalanuvchilar ilovani ochganda ko'radi.";
+    statusEl.style.color = 'var(--good)';
+  }catch(err){
+    statusEl.textContent = 'Xatolik: '+err.message;
+    statusEl.style.color = 'var(--bad)';
+  }
+});
+
+document.getElementById('sendPushBtn').addEventListener('click', async ()=>{
+  const text = document.getElementById('broadcastMessage').value.trim();
+  const statusEl = document.getElementById('broadcastStatus');
+  if(!text){ statusEl.textContent = "Avval xabar matnini kiriting."; statusEl.style.color = 'var(--bad)'; return; }
+  if(!ADMIN_ACTIONS_WORKER_URL){
+    statusEl.textContent = "ADMIN_ACTIONS_WORKER_URL config.js'da sozlanmagan.";
+    statusEl.style.color = 'var(--bad)';
+    return;
+  }
+  statusEl.textContent = 'Yuborilmoqda…'; statusEl.style.color = 'var(--ink-soft)';
+  try{
+    const {data:{session}} = await sb.auth.getSession();
+    const resp = await fetch(ADMIN_ACTIONS_WORKER_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json', 'Authorization':'Bearer '+session.access_token},
+      body: JSON.stringify({action:'send_push', title:'Flashcards', message: text}),
+    });
+    const result = await resp.json().catch(()=>null);
+    if(!resp.ok) throw new Error((result && result.message) || await resp.text());
+    statusEl.textContent = `Push yuborildi: ${result.sent} ta qurilmaga muvaffaqiyatli, ${result.failed} ta xato (${result.total} ta obunadan).`;
+    statusEl.style.color = 'var(--good)';
+  }catch(err){
+    statusEl.textContent = 'Xatolik: '+err.message;
+    statusEl.style.color = 'var(--bad)';
+  }
+});
+
+// ============================================================
 // BARCHA SHAXSIY TO'PLAMLAR (admin barchasini ko'rib, qulflay oladi)
 // ============================================================
 let profilesById = {};

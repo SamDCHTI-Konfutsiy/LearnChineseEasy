@@ -10,7 +10,7 @@
 // Shunday qilib kod yangilanganda foydalanuvchi doim eng so'nggi
 // versiyani ko'radi, "yarim eski / yarim yangi" holat bo'lmaydi.
 // ============================================================
-const CACHE_VERSION = 'v2'; // Har safar sw.js ni o'zgartirganda bu raqamni oshiring
+const CACHE_VERSION = 'v3'; // Har safar sw.js ni o'zgartirganda bu raqamni oshiring
 const CACHE_NAME = `flashcards-${CACHE_VERSION}`;
 const APP_SHELL = [
   './',
@@ -59,5 +59,40 @@ self.addEventListener('fetch', (event) => {
         return resp;
       })
       .catch(() => caches.match(event.request))
+  );
+});
+
+// ============================================================
+// PUSH-BILDIRISHNOMA: admin yuborgan xabarni tizim bildirishnoma
+// panelida ko'rsatamiz (ilova yopiq bo'lsa ham ishlaydi).
+// ============================================================
+self.addEventListener('push', (event) => {
+  let data = { title: 'Flashcards', body: 'Yangi xabar bor.' };
+  try {
+    if (event.data) data = event.data.json();
+  } catch (e) {
+    if (event.data) data.body = event.data.text();
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Flashcards', {
+      body: data.body || '',
+      icon: './launch-192.png',
+      badge: './launch-192.png',
+      tag: 'flashcards-announcement',
+      renotify: true,
+    })
+  );
+});
+
+// Bildirishnomani bosganda ilovani ochish (agar ochiq bo'lsa, unga o'tish)
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow('./');
+    })
   );
 });

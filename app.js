@@ -137,6 +137,7 @@ async function enterAppFromSession(session, notifyEvent=null, retry=0){
   await loadCustomHskWords();
   await loadInitialData();
   renderDashboard();
+  loadAnnouncement();
   if(navigator.onLine) flushOfflineQueue();
 }
 
@@ -179,7 +180,7 @@ function switchTab(tab){
   document.querySelectorAll('.tabpanel').forEach(p=>p.classList.add('hidden'));
   document.getElementById('tab-'+tab).classList.remove('hidden');
   if(tab==='decks'){ showDeckListView(); renderHskGrid('hskGridDecks'); renderCustomDecks('customDeckList2'); }
-  if(tab==='profil'){ populateVoiceSelect(); }
+  if(tab==='profil'){ populateVoiceSelect(); updatePushButtonState(); }
   if(tab==='hskmanage'){ renderCustomHskWordList(); }
   if(tab==='words'){ initWordsTab(); }
 }
@@ -1073,3 +1074,108 @@ async function grade(quality){
   state.revealed = false;
   renderStudyCard();
 }
+
+// ============================================================
+// E'LON BANNERI: admin qo'ygan so'nggi faol e'lonni ko'rsatadi.
+// Har bir e'lon bir marta ko'rsatiladi (yopilgandan keyin localStorage'da
+// eslab qolinadi, qayta chiqmaydi).
+// ============================================================
+async function loadAnnouncement(){
+  try{
+    const {data, error} = await sb.from('announcements')
+      .select('id,message').eq('active', true)
+      .order('created_at', {ascending:false}).limit(1).maybeSingle();
+    if(error || !data) return;
+    const seenId = localStorage.getItem('flashcards_last_seen_announcement');
+    if(seenId === data.id) return;
+    const bar = document.getElementById('announcementBanner');
+    if(!bar) return;
+    document.getElementById('announcementText').textContent = data.message;
+    bar.classList.add('show');
+    bar.dataset.announcementId = data.id;
+  }catch(e){ /* jim tur — e'lon ko'rinmasa ham ilova ishlayveradi */ }
+}
+document.getElementById('announcementCloseBtn')?.addEventListener('click', ()=>{
+  const bar = document.getElementById('announcementBanner');
+  if(bar.dataset.announcementId) localStorage.setItem('flashcards_last_seen_announcement', bar.dataset.announcementId);
+  bar.classList.remove('show');
+});
+
+// ============================================================
+// PUSH-BILDIRISHNOMA OBUNASI
+// ============================================================
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+async function getPushSubscriptionState(){
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported';
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  return sub ? 'subscribed' : 'unsubscribed';
+}
+
+async function updatePushButtonState(){
+  const btn = document.getElementById('togglePushBtn');
+  if(!btn) return;
+  const state = await getPushSubscriptionState();
+  if(state === 'unsupported'){
+    btn.textContent = "Bu qurilmada push qo'llab-quvvatlanmaydi";
+    btn.disabled = true;
+  }else if(state === 'subscribed'){
+    btn.textContent = "Bildirishnomalar yoqilgan ✓ (o'chirish)";
+  }else{
+    btn.textContent = 'Bildirishnomalarni yoqish';
+  }
+}
+
+async function subscribeToPush(){
+  const btn = document.getElementById('togglePushBtn');
+  try{
+    const currentState = await getPushSubscriptionState();
+    const reg = await navigator.serviceWorker.ready;
+
+    if(currentState === 'subscribed'){
+      const sub = await reg.pushManager.getSubscription();
+      if(sub){
+        await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+        await sub.unsubscribe();
+      }
+      showToast('Bildirishnomalar o\'chirildi.');
+      await updatePushButtonState();
+      return;
+    }
+
+    const perm = await Notification.requestPermission();
+    if(perm !== 'granted'){
+      showToast("Ruxsat berilmadi — brauzer sozlamalaridan yoqishingiz mumkin.");
+      return;
+    }
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+    const subJson = sub.toJSON();
+    const {error} = await sb.from('push_subscriptions').upsert({
+      user_id: state_getUserId(),
+      endpoint: subJson.endpoint,
+      p256dh: subJson.keys.p256dh,
+      auth: subJson.keys.auth,
+    }, {onConflict:'endpoint'});
+    if(error){ showToast('Xatolik: '+error.message); return; }
+    showToast('Bildirishnomalar yoqildi!');
+    await updatePushButtonState();
+  }catch(e){
+    showToast('Xatolik: '+e.message);
+  }finally{
+    // tugma matni updatePushButtonState orqali yangilanadi
+  }
+}
+function state_getUserId(){ return state.user ? state.user.id : null; }
+
+document.getElementById('togglePushBtn')?.addEventListener('click', subscribeToPush);

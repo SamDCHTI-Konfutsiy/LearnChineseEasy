@@ -153,6 +153,10 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
 .file-btn{display:inline-block;}
 .offline-banner{background:var(--warn-soft);color:var(--warn);border-radius:var(--radius);padding:10px 14px;font-size:12.5px;margin-bottom:16px;display:none;align-items:center;gap:8px;}
 .offline-banner.show{display:flex;}
+.announcement-banner{background:var(--accent-soft);color:var(--accent);border-radius:var(--radius);padding:10px 14px;font-size:12.5px;margin-bottom:16px;display:none;align-items:center;gap:10px;justify-content:space-between;}
+.announcement-banner.show{display:flex;}
+.announcement-banner .msg{flex:1;}
+.announcement-banner .close-x{background:none;border:none;color:var(--accent);cursor:pointer;font-size:16px;padding:0 2px;flex-shrink:0;}
 
 /* so'zlar ro'yxati */
 .word-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line-soft);font-size:13.5px;}
@@ -282,6 +286,10 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
       </div>
     </div>
     <div class="offline-banner" id="offlineBanner">📡 Internet yo'q — offline rejimda ishlayapsiz. Natijalar internet qaytganda saqlanadi.</div>
+    <div class="announcement-banner" id="announcementBanner">
+      <span class="msg">📢 <span id="announcementText"></span></span>
+      <button class="close-x" id="announcementCloseBtn" aria-label="Yopish">&times;</button>
+    </div>
 
     <!-- DASHBOARD TAB -->
     <div id="tab-dashboard" class="tabpanel">
@@ -350,6 +358,11 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
             <option value="type">Pinyin yozish — klaviaturada tering</option>
           </select>
         </div>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <p class="section-label" style="margin-bottom:6px;">Bildirishnomalar</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;">Yoqsangiz, ilova yopiq bo'lsa ham muhim xabarlar va eslatmalar telefoningizga push-bildirishnoma sifatida keladi.</p>
+        <button class="btn secondary" id="togglePushBtn">Bildirishnomalarni yoqish</button>
       </div>
       <div class="card" style="margin-bottom:16px;">
         <p class="section-label" style="margin-bottom:6px;">Ovoz sozlamalari (TTS)</p>

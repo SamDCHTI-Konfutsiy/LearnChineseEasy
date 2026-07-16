@@ -63,6 +63,18 @@ td{padding:10px 14px;border-top:1px solid var(--line-soft);vertical-align:middle
   </div>
 
   <div id="adminContent" class="hidden">
+    <p class="section-label" style="margin-bottom:10px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#93908A;font-weight:700;">Barchaga xabar yuborish</p>
+    <div class="card" style="padding:18px;margin-bottom:16px;">
+      <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:6px;">Xabar matni</label>
+      <textarea id="broadcastMessage" rows="3" placeholder="Masalan: Ertaga HSK 3 uchun yangi so'zlar qo'shildi!" style="width:100%;font-family:inherit;font-size:13.5px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);"></textarea>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+        <button class="btn" id="sendAnnouncementBtn">📢 Ilova ichiga e'lon qilish</button>
+        <button class="btn primary" id="sendPushBtn">🔔 Push-bildirishnoma yuborish</button>
+      </div>
+      <p id="broadcastStatus" style="font-size:12.5px;color:var(--ink-soft);margin:10px 0 0;"></p>
+      <p style="font-size:11.5px;color:var(--ink-faint);margin:6px 0 0;">E'lon — ilovani ochganda banner sifatida ko'rinadi. Push — obuna bo'lgan foydalanuvchilarga ilova yopiq bo'lsa ham telefon bildirishnomasi sifatida boradi.</p>
+    </div>
+
     <p style="color:var(--ink-soft);font-size:13.5px;margin-bottom:14px;">
       Foydalanuvchini "Bloklash" qilsangiz, u tizimga kira olmay qoladi.
     </p>
