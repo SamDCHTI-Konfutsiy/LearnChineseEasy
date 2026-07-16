@@ -371,9 +371,9 @@ function renderStats(){
   if(!el) return;
   const s = computeStats();
   el.innerHTML = `
-    <div class="stat-box"><div class="num">${s.totalLearned}</div><div class="lbl">O'rganilgan so'z</div></div>
-    <div class="stat-box"><div class="num">${s.dueToday}</div><div class="lbl">Bugun kutmoqda</div></div>
-    <div class="stat-box"><div class="num">${s.streak}</div><div class="lbl">Ketma-ket kun</div></div>`;
+    <div class="stat-box" style="--stat-accent:var(--accent);"><div class="ico">📖</div><div class="num">${s.totalLearned}</div><div class="lbl">${t('dash.stat_learned')}</div></div>
+    <div class="stat-box" style="--stat-accent:var(--warn);"><div class="ico">⏰</div><div class="num">${s.dueToday}</div><div class="lbl">${t('dash.stat_due_today')}</div></div>
+    <div class="stat-box" style="--stat-accent:var(--good);"><div class="ico">🔥</div><div class="num">${s.streak}</div><div class="lbl">${t('dash.stat_streak')}</div></div>`;
 }
 function renderHskGrid(containerId){
   const grid = document.getElementById(containerId);

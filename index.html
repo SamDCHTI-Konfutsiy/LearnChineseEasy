@@ -20,7 +20,8 @@
   --good:#2F6B57; --good-soft:#E4F0EC;
   --warn:#B8862F; --warn-soft:#FBF1DF;
   --bad:#B7312C; --bad-soft:#FBEAE9;
-  --radius:8px; --shadow:0 1px 2px rgba(20,20,24,.05),0 6px 18px rgba(20,20,24,.06);
+  --radius:8px; --shadow:0 1px 3px rgba(20,20,24,.04),0 8px 22px rgba(20,20,24,.06);
+  --shadow-hover:0 4px 10px rgba(20,20,24,.07),0 18px 36px rgba(20,20,24,.11);
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --display:Georgia,"Iowan Old Style","Times New Roman",serif;
   --cjk:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
@@ -37,6 +38,7 @@ html[data-theme="dark"]{
   --warn:#E0B25C; --warn-soft:#3A311D;
   --bad:#E8837D; --bad-soft:#3C2422;
   --shadow:0 1px 2px rgba(0,0,0,.25),0 6px 18px rgba(0,0,0,.35);
+  --shadow-hover:0 4px 10px rgba(0,0,0,.3),0 18px 36px rgba(0,0,0,.4);
 }
 html, body{ transition:background-color .2s ease, color .2s ease; }
 *{box-sizing:border-box;}
@@ -52,20 +54,22 @@ a{color:var(--accent);}
 h1,h2,h3{font-weight:500;}
 
 /* topbar */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;margin-bottom:20px;border-bottom:2px solid var(--ink);}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px;margin-bottom:20px;border-bottom:2px solid var(--ink);flex-wrap:wrap;}
 .brand{display:flex;align-items:center;gap:10px;}
 .brand .mark{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:var(--accent);color:#fff;font-family:var(--cjk);font-size:15px;border-radius:6px;}
 .brand h1{font-family:var(--display);font-size:20px;margin:0;}
-.topnav{display:flex;gap:4px;align-items:center;}
-.navbtn{padding:7px 13px;border-radius:20px;font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;border:1px solid transparent;background:none;}
+.topnav{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-left:auto;}
+.nav-pills{display:flex;gap:2px;align-items:center;background:var(--line-soft);border-radius:22px;padding:3px;}
+.navbtn{padding:7px 13px;border-radius:19px;font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;border:1px solid transparent;background:none;transition:background .15s ease,color .15s ease;}
 .navbtn:hover{color:var(--ink);}
 .navbtn.active{background:var(--ink);color:var(--paper);}
-.navbtn.ghost{border-color:var(--line);}
+.navbtn.ghost{border-color:var(--line);background:var(--surface);}
+.topnav-utils{display:flex;gap:6px;align-items:center;padding-left:14px;border-left:1px solid var(--line);}
 .icon-btn{padding:7px 10px;font-size:14px;line-height:1;}
 
 /* til almashtirgich */
 .lang-switch{display:flex;gap:4px;}
-.lang-btn{font-size:11.5px;font-weight:700;padding:5px 9px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink-faint);cursor:pointer;text-transform:uppercase;letter-spacing:.02em;}
+.lang-btn{font-size:11.5px;font-weight:700;padding:5px 9px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink-faint);cursor:pointer;text-transform:uppercase;letter-spacing:.02em;transition:color .15s ease;}
 .lang-btn:hover{color:var(--ink);}
 .lang-btn.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
 #authLangSwitch{position:fixed;top:16px;right:16px;z-index:2;}
@@ -77,11 +81,14 @@ h1,h2,h3{font-weight:500;}
 .section-label{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-faint);font-weight:700;margin:0 0 10px 2px;}
 
 /* buttons / inputs */
-.btn{font-family:var(--sans);font-weight:600;font-size:14px;padding:11px 20px;border-radius:var(--radius);border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer;}
-.btn:hover{filter:brightness(1.08);}
-.btn.secondary{background:transparent;color:var(--ink);border-color:var(--line);}
-.btn.danger{background:transparent;color:var(--bad);border-color:var(--bad-soft);}
-.btn:disabled{opacity:.45;cursor:not-allowed;}
+.btn{font-family:var(--sans);font-weight:600;font-size:14px;padding:11px 20px;border-radius:var(--radius);border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer;box-shadow:0 1px 2px rgba(79,70,214,.2),0 4px 10px rgba(79,70,214,.15);transition:filter .15s ease,transform .1s ease,box-shadow .15s ease;}
+.btn:hover{filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 2px 4px rgba(79,70,214,.22),0 8px 16px rgba(79,70,214,.2);}
+.btn:active{transform:translateY(0);}
+.btn.secondary{background:transparent;color:var(--ink);border-color:var(--line);box-shadow:none;}
+.btn.secondary:hover{background:var(--line-soft);box-shadow:none;transform:none;}
+.btn.danger{background:transparent;color:var(--bad);border-color:var(--bad-soft);box-shadow:none;}
+.btn.danger:hover{background:var(--bad-soft);box-shadow:none;transform:none;}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
 .btn-row{display:flex;gap:10px;flex-wrap:wrap;}
 input,textarea{font-family:var(--sans);font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);color:var(--ink);width:100%;}
 input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
@@ -101,19 +108,23 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
 @media (max-width:640px){.deck-grid{grid-template-columns:repeat(2,1fr);}}
 .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;}
 @media (max-width:640px){.stats-row{grid-template-columns:repeat(3,1fr);}}
-.stat-box{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 10px;text-align:center;box-shadow:var(--shadow);}
+.stat-box{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 10px 14px;text-align:center;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+.stat-box::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--stat-accent,var(--accent));}
+.stat-box .ico{font-size:15px;opacity:.7;margin-bottom:2px;}
 .stat-box .num{font-size:24px;font-weight:700;font-family:var(--display);color:var(--accent);line-height:1;}
 .stat-box .lbl{font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-top:6px;}
-.dk-bar{height:4px;background:var(--line-soft);border-radius:2px;margin-top:8px;overflow:hidden;}
-.dk-bar i{display:block;height:100%;background:var(--good);border-radius:2px;}
-.deck-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;cursor:pointer;position:relative;text-align:left;}
-.deck-card:hover{border-color:var(--accent);}
+.dk-bar{height:5px;background:var(--line-soft);border-radius:3px;margin-top:8px;overflow:hidden;}
+.dk-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--good),#4FAE8C);border-radius:3px;transition:width .3s ease;}
+.deck-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;cursor:pointer;position:relative;text-align:left;box-shadow:var(--shadow);transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;}
+.deck-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow-hover);}
 .deck-card .dk-name{font-size:13.5px;font-weight:600;}
 .deck-card .dk-sub{font-size:11px;color:var(--ink-faint);margin-top:3px;}
 .deck-card .due-dot{position:absolute;top:10px;right:10px;background:var(--bad);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 5px;}
 .deck-card.locked{cursor:not-allowed;opacity:.5;}
+.deck-card.locked:hover{transform:none;box-shadow:var(--shadow);border-color:var(--line);}
 .deck-card .lock-tag{position:absolute;top:10px;right:10px;font-size:13px;color:var(--ink-faint);}
-.custom-deck-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);margin-bottom:8px;}
+.custom-deck-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);margin-bottom:8px;box-shadow:0 1px 2px rgba(20,20,24,.03);transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease;}
+.custom-deck-row:hover{border-color:var(--accent);box-shadow:var(--shadow-hover);transform:translateY(-1px);}
 .custom-deck-row .name{font-weight:600;font-size:14px;cursor:pointer;}
 .shared-badge{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--good-soft);color:var(--good);text-transform:none;vertical-align:middle;}
 .custom-deck-row .meta{font-size:11.5px;color:var(--ink-faint);}
@@ -207,11 +218,25 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
 /* ============ AUTH HERO / BACKGROUND ============ */
 /* Fon rasmi faqat atmosfera — hech qanday matn uning ustiga
    qo'yilmaydi, shuning uchun istalgan rasmda toza ko'rinadi. */
-.auth-bg{position:fixed;inset:0;z-index:0;background-image:url('iconfon.png');background-repeat:no-repeat;background-size:cover;background-position:center;background-color:var(--ink);}
-.auth-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,16,20,.32) 0%,rgba(15,16,20,.5) 100%);}
+.auth-bg{position:fixed;inset:0;z-index:0;overflow:hidden;background:#1B1D3A;}
+.auth-bg svg{position:absolute;inset:0;width:100%;height:100%;}
+.auth-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,16,20,.08) 0%,rgba(15,16,20,.18) 100%);}
 #screen-auth{max-width:380px;margin:0 auto;padding:32px 0;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;position:relative;}
 .auth-content{position:relative;z-index:1;}
 .auth-content .card{background:rgba(255,255,255,.97);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.6);box-shadow:0 24px 70px rgba(10,10,14,.5);padding-top:26px;}
+/* Login ekrani har doim yorug' (kunduzgi) rangda — kechki rejim
+   yoqilgan bo'lsa ham. Shu o'zgaruvchilarni shu yerda qayta e'lon
+   qilish orqali #screen-auth ICHIDAGI hamma narsa (matn, maydonlar,
+   tugmalar) doim to'g'ri kontrastda ko'rinishini kafolatlaymiz. */
+#screen-auth{
+  --paper:#F5F3EE; --surface:#FFFFFF;
+  --ink:#20232A; --ink-soft:#585B62; --ink-faint:#93908A;
+  --line:#DEDAD0; --line-soft:#EAE7DE;
+  --accent:#4F46D6; --accent-soft:#ECEBFB; --accent-ink:#FFFFFF;
+  --good:#2F6B57; --good-soft:#E4F0EC;
+  --warn:#B8862F; --warn-soft:#FBF1DF;
+  --bad:#B7312C; --bad-soft:#FBEAE9;
+}
 
 /* brend endi karta ICHIDA — shu tufayli qanday fon rasm bo'lsa ham to'qnashmaydi */
 .auth-card-brand{display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;margin-bottom:22px;}
@@ -254,7 +279,63 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
 
   <!-- ============ AUTH SCREEN ============ -->
   <div id="screen-auth">
-    <div class="auth-bg"></div>
+    <div class="auth-bg">
+      <svg viewBox="0 0 1200 900" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#171A38"/>
+            <stop offset="38%" stop-color="#332C6B"/>
+            <stop offset="68%" stop-color="#5B4FA0"/>
+            <stop offset="100%" stop-color="#EDE7D8"/>
+          </linearGradient>
+          <radialGradient id="moonGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#FBF3D9" stop-opacity="1"/>
+            <stop offset="55%" stop-color="#F3D9A6" stop-opacity=".9"/>
+            <stop offset="100%" stop-color="#F3D9A6" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="mistGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#EDE7D8" stop-opacity="0"/>
+            <stop offset="50%" stop-color="#EDE7D8" stop-opacity=".55"/>
+            <stop offset="100%" stop-color="#EDE7D8" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+
+        <rect x="0" y="0" width="1200" height="900" fill="url(#skyGrad)"/>
+
+        <!-- oy -->
+        <circle cx="860" cy="190" r="130" fill="url(#moonGlow)"/>
+        <circle cx="860" cy="190" r="54" fill="#FBF3E3"/>
+
+        <!-- uchayotgan qushlar -->
+        <g stroke="#EDE7D8" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".55">
+          <path d="M330,150 q12,-14 24,0 q12,-14 24,0"/>
+          <path d="M395,180 q10,-11 20,0 q10,-11 20,0"/>
+          <path d="M270,205 q9,-10 18,0 q9,-10 18,0"/>
+        </g>
+
+        <!-- eng uzoq tog' qatlami -->
+        <path d="M0,470 C120,410 260,440 380,400 C520,355 640,410 780,375 C900,345 1040,395 1200,360 L1200,900 L0,900 Z" fill="#8078B8" opacity=".38"/>
+        <!-- mavhum tuman -->
+        <rect x="0" y="430" width="1200" height="70" fill="url(#mistGrad)"/>
+        <!-- o'rta tog' qatlami -->
+        <path d="M0,590 C160,510 320,555 480,495 C620,445 760,520 920,470 C1020,440 1120,480 1200,455 L1200,900 L0,900 Z" fill="#524A93" opacity=".55"/>
+        <rect x="0" y="555" width="1200" height="65" fill="url(#mistGrad)"/>
+        <!-- yaqin tog' qatlami -->
+        <path d="M0,700 C140,610 300,660 460,585 C600,520 740,610 900,545 C1010,500 1120,555 1200,520 L1200,900 L0,900 Z" fill="#2E2A5C"/>
+
+        <!-- gulli shoxcha (chap pastda, nozik) -->
+        <g opacity=".5" stroke="#EDE7D8" stroke-width="2.5" fill="none" stroke-linecap="round">
+          <path d="M-20,860 C40,830 70,790 130,760"/>
+          <path d="M40,815 L10,795"/>
+          <path d="M75,782 L95,760"/>
+        </g>
+        <g fill="#F3D9A6" opacity=".6">
+          <circle cx="8" cy="793" r="5"/>
+          <circle cx="97" cy="757" r="5"/>
+          <circle cx="128" cy="761" r="4"/>
+        </g>
+      </svg>
+    </div>
     <div class="lang-switch" id="authLangSwitch"></div>
     <div class="auth-content">
       <div class="card">
@@ -306,16 +387,20 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
   <div id="screen-app" class="hidden">
     <div class="topbar">
       <div class="brand"><span class="mark">学</span><h1>Flashcards</h1></div>
-      <div class="lang-switch" id="appLangSwitch"></div>
       <div class="topnav">
-        <button class="navbtn active" data-tab="dashboard" data-i18n="nav.dashboard">Bosh sahifa</button>
-        <button class="navbtn" data-tab="decks" data-i18n="nav.decks">To'plamlar</button>
-        <button class="navbtn" data-tab="words" data-i18n="nav.words">So'zlar</button>
-        <button class="navbtn" data-tab="profil" data-i18n="nav.profile">Profil</button>
-        <button class="navbtn ghost hidden" id="hskManageLink" data-tab="hskmanage" data-i18n="nav.hsk_manage">HSK boshqaruvi</button>
-        <a id="adminLink" href="admin.html" class="navbtn ghost hidden" data-i18n="nav.admin">Admin</a>
-        <button class="navbtn ghost icon-btn" id="themeToggleBtn" data-i18n-aria="nav.toggle_theme" aria-label="Rejimni almashtirish" title="Kunduzgi/kechki rejim">🌙</button>
-        <button class="navbtn ghost" id="logoutBtn" data-i18n="nav.logout">Chiqish</button>
+        <div class="nav-pills">
+          <button class="navbtn active" data-tab="dashboard" data-i18n="nav.dashboard">Bosh sahifa</button>
+          <button class="navbtn" data-tab="decks" data-i18n="nav.decks">To'plamlar</button>
+          <button class="navbtn" data-tab="words" data-i18n="nav.words">So'zlar</button>
+          <button class="navbtn" data-tab="profil" data-i18n="nav.profile">Profil</button>
+          <button class="navbtn hidden" id="hskManageLink" data-tab="hskmanage" data-i18n="nav.hsk_manage">HSK boshqaruvi</button>
+        </div>
+        <div class="topnav-utils">
+          <a id="adminLink" href="admin.html" class="navbtn ghost hidden" data-i18n="nav.admin">Admin</a>
+          <div class="lang-switch" id="appLangSwitch"></div>
+          <button class="navbtn ghost icon-btn" id="themeToggleBtn" data-i18n-aria="nav.toggle_theme" aria-label="Rejimni almashtirish" title="Kunduzgi/kechki rejim">🌙</button>
+          <button class="navbtn ghost" id="logoutBtn" data-i18n="nav.logout">Chiqish</button>
+        </div>
       </div>
     </div>
     <div class="offline-banner" id="offlineBanner" data-i18n="app.offline_banner">📡 Internet yo'q — offline rejimda ishlayapsiz. Natijalar internet qaytganda saqlanadi.</div>

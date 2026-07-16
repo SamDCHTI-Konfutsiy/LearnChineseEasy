@@ -142,6 +142,9 @@ uz: {
   'dyn.shared_readonly_deck': "Bu — administrator ulashgan mavzu, faqat o'rganish uchun (tahrirlab bo'lmaydi).",
   'dyn.book_shared': "Kitob hammaga ochiq qilindi",
   'dyn.book_unshared': "Kitob shaxsiy qilindi",
+  'dash.stat_learned': "O'rganilgan so'z",
+  'dash.stat_due_today': "Bugun kutmoqda",
+  'dash.stat_streak': "Ketma-ket kun",
 },
 
 ru: {
@@ -267,6 +270,9 @@ ru: {
   'dyn.shared_readonly_deck': "Это тема, открытая администратором — только для изучения (редактировать нельзя).",
   'dyn.book_shared': "Книга стала общедоступной",
   'dyn.book_unshared': "Книга стала личной",
+  'dash.stat_learned': "Изучено слов",
+  'dash.stat_due_today': "К повторению сегодня",
+  'dash.stat_streak': "Дней подряд",
 },
 
 zh: {
@@ -392,6 +398,9 @@ zh: {
   'dyn.shared_readonly_deck': "这是管理员公开的课题 — 仅供学习（无法编辑）。",
   'dyn.book_shared': "书籍已设为公开",
   'dyn.book_unshared': "书籍已设为私有",
+  'dash.stat_learned': "已学单词",
+  'dash.stat_due_today': "今日待复习",
+  'dash.stat_streak': "连续天数",
 },
 
 en: {
@@ -517,6 +526,9 @@ en: {
   'dyn.shared_readonly_deck': "This is a topic shared by the administrator — for studying only (can't be edited).",
   'dyn.book_shared': "Book made public",
   'dyn.book_unshared': "Book made private",
+  'dash.stat_learned': "Words learned",
+  'dash.stat_due_today': "Due today",
+  'dash.stat_streak': "Day streak",
 },
 
 };
