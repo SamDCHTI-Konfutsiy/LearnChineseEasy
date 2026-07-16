@@ -126,6 +126,14 @@ uz: {
   'dyn.book_name_prompt': "Kitob nomi (masalan: HSK 1 kitobim):",
   'dyn.topic_name_prompt': "Mavzu nomi (masalan: 1-mavzu: Salomlashish):",
   'dyn.rename_prompt': "Yangi nom:",
+  'bulk.open_btn': "🤖 AI natijasidan import qilish",
+  'bulk.title': "AI natijasidan import qilish",
+  'bulk.help': "AI (Claude, ChatGPT va h.k.) sizga bergan to'liq matnni shu yerga joylang — \"===MAVZU: ...===\" bloklari bilan. Sayt har bir mavzuni va ichidagi kartalarni avtomatik yaratadi.",
+  'bulk.placeholder': "===MAVZU: 1-dars: Salomlashish===\nfront,back,hanzi,pinyin\nSalom,Salom,你好,nǐ hǎo",
+  'bulk.submit': "Import qilish",
+  'bulk.no_topics_found': 'Hech qanday "===MAVZU: ...===" bloki topilmadi. Formatni tekshiring.',
+  'bulk.importing': "Import qilinmoqda...",
+  'bulk.success_prefix': "✓ Tayyor:",
 },
 
 ru: {
@@ -235,6 +243,14 @@ ru: {
   'dyn.book_name_prompt': "Название книги (например: Моя книга HSK 1):",
   'dyn.topic_name_prompt': "Название темы (например: Тема 1: Приветствие):",
   'dyn.rename_prompt': "Новое название:",
+  'bulk.open_btn': "🤖 Импорт из результата AI",
+  'bulk.title': "Импорт из результата AI",
+  'bulk.help': "Вставьте сюда полный текст, полученный от AI (Claude, ChatGPT и т.д.) — с блоками \"===MAVZU: ...===\". Сайт автоматически создаст каждую тему и карточки в ней.",
+  'bulk.placeholder': "===MAVZU: Урок 1: Приветствие===\nfront,back,hanzi,pinyin\nПривет,Привет,你好,nǐ hǎo",
+  'bulk.submit': "Импортировать",
+  'bulk.no_topics_found': 'Блоки "===MAVZU: ...===" не найдены. Проверьте формат.',
+  'bulk.importing': "Импортируется...",
+  'bulk.success_prefix': "✓ Готово:",
 },
 
 zh: {
@@ -344,6 +360,14 @@ zh: {
   'dyn.book_name_prompt': "书籍名称（例如：我的HSK1书籍）：",
   'dyn.topic_name_prompt': "课题名称（例如：第1课：打招呼）：",
   'dyn.rename_prompt': "新名称：",
+  'bulk.open_btn': "🤖 从AI结果导入",
+  'bulk.title': "从AI结果导入",
+  'bulk.help': "将AI（Claude、ChatGPT等）为您生成的完整文本粘贴到此处 — 包含\"===MAVZU: ...===\"标记块。网站将自动创建每个课题及其卡片。",
+  'bulk.placeholder': "===MAVZU: 第1课：打招呼===\nfront,back,hanzi,pinyin\n你好,你好,你好,nǐ hǎo",
+  'bulk.submit': "导入",
+  'bulk.no_topics_found': "未找到\"===MAVZU: ...===\"标记块，请检查格式。",
+  'bulk.importing': "正在导入…",
+  'bulk.success_prefix': "✓ 完成：",
 },
 
 en: {
@@ -453,6 +477,14 @@ en: {
   'dyn.book_name_prompt': "Book name (e.g. My HSK 1 book):",
   'dyn.topic_name_prompt': "Topic name (e.g. Topic 1: Greetings):",
   'dyn.rename_prompt': "New name:",
+  'bulk.open_btn': "🤖 Import from AI output",
+  'bulk.title': "Import from AI output",
+  'bulk.help': "Paste the full text the AI (Claude, ChatGPT, etc.) gave you here — with \"===MAVZU: ...===\" blocks. The site will automatically create each topic and its cards.",
+  'bulk.placeholder': "===MAVZU: Lesson 1: Greetings===\nfront,back,hanzi,pinyin\nHello,Hello,你好,nǐ hǎo",
+  'bulk.submit': "Import",
+  'bulk.no_topics_found': 'No "===MAVZU: ...===" blocks found. Please check the format.',
+  'bulk.importing': "Importing...",
+  'bulk.success_prefix': "✓ Done:",
 },
 
 };

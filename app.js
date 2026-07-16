@@ -623,6 +623,110 @@ document.getElementById('newTopicBtn').addEventListener('click', async ()=>{
   renderTopicList();
 });
 
+// ============================================================
+// AI NATIJASIDAN OMMAVIY IMPORT
+// Kutilgan format:
+//   ===MAVZU: 1-dars: Salomlashish===
+//   front,back,hanzi,pinyin
+//   Salom,Salom,你好,nǐ hǎo
+//   ===MAVZU: 2-dars: Oila===
+//   ...
+// Bitta joylashda ko'plab mavzu va ularning kartalarini bir yo'la
+// yaratadi — 15-40 mavzuli kitoblar uchun mo'ljallangan.
+// ============================================================
+document.getElementById('openBulkImportBtn').addEventListener('click', ()=>{
+  document.getElementById('bulkImportText').value = '';
+  const statusEl = document.getElementById('bulkImportStatus');
+  statusEl.textContent = '';
+  document.getElementById('bulkImportModal').classList.add('open');
+});
+document.getElementById('bulkImportClose').addEventListener('click', ()=>{
+  document.getElementById('bulkImportModal').classList.remove('open');
+});
+
+function parseBulkImportText(text){
+  const topicRegex = /===\s*MAVZU\s*:\s*(.+?)\s*===/gi;
+  const markers = [];
+  let m;
+  while((m = topicRegex.exec(text)) !== null){
+    markers.push({ name: m[1].trim(), markerStart: m.index, contentStart: topicRegex.lastIndex });
+  }
+  const topics = [];
+  for(let i=0; i<markers.length; i++){
+    const contentEnd = (i+1 < markers.length) ? markers[i+1].markerStart : text.length;
+    const block = text.slice(markers[i].contentStart, contentEnd).trim();
+    const lines = block.split(/\r?\n/).filter(l=>l.trim());
+    let start = 0;
+    if(lines.length){
+      const firstCols = parseCsvLine(lines[0]).map(s=>s.toLowerCase());
+      if(firstCols[0]==='front' || firstCols[0]==="old tomon") start = 1;
+    }
+    const cards = [];
+    for(let j=start;j<lines.length;j++){
+      const cols = parseCsvLine(lines[j]);
+      if(cols.length>=1 && cols[0]){
+        cards.push({ front: cols[0], back: cols[1]||'', hanzi: cols[2]||null, pinyin: cols[3]||null });
+      }
+    }
+    if(markers[i].name) topics.push({ name: markers[i].name, cards });
+  }
+  return topics;
+}
+
+document.getElementById('bulkImportSubmitBtn').addEventListener('click', async ()=>{
+  const text = document.getElementById('bulkImportText').value;
+  const statusEl = document.getElementById('bulkImportStatus');
+  const btn = document.getElementById('bulkImportSubmitBtn');
+  const topics = parseBulkImportText(text);
+  if(!topics.length){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = t('bulk.no_topics_found');
+    return;
+  }
+  btn.disabled = true;
+  statusEl.style.color = 'var(--ink-soft)';
+  statusEl.textContent = t('bulk.importing');
+
+  let existingCount = state.decks.filter(d=>d.book_id===state.currentBook.id).length;
+  let totalTopics = 0, totalCards = 0;
+  const errors = [];
+
+  for(const topic of topics){
+    const {data: deckData, error: deckError} = await sb.from('decks').insert({
+      owner_id: state.user.id, name: topic.name,
+      book_id: state.currentBook.id, topic_order: existingCount,
+    }).select().single();
+    if(deckError){ errors.push(topic.name+': '+deckError.message); continue; }
+    existingCount++;
+    state.decks.push(deckData);
+    state.cardsByDeck.set(deckData.id, []);
+    totalTopics++;
+
+    for(let i=0;i<topic.cards.length;i+=300){
+      const chunk = topic.cards.slice(i,i+300).map(c=>({...c, deck_id: deckData.id}));
+      if(!chunk.length) continue;
+      const {data: cardsData, error: cardsError} = await sb.from('cards').insert(chunk).select();
+      if(cardsError){ errors.push(topic.name+' ('+t('decks.cards')+'): '+cardsError.message); continue; }
+      const arr = state.cardsByDeck.get(deckData.id) || [];
+      state.cardsByDeck.set(deckData.id, arr.concat(cardsData));
+      totalCards += cardsData.length;
+    }
+  }
+
+  btn.disabled = false;
+  renderTopicList();
+  renderDashboard();
+  const summary = `${totalTopics} ${t('dyn.topics_word')}, ${totalCards} ${t('dyn.cards_word')}`;
+  if(errors.length){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = `${summary} — ${t('dyn.error_prefix')}${errors[0]}`;
+  }else{
+    statusEl.style.color = 'var(--good)';
+    statusEl.textContent = `${t('bulk.success_prefix')} ${summary}`;
+    setTimeout(()=>{ document.getElementById('bulkImportModal').classList.remove('open'); }, 1400);
+  }
+});
+
 function renderCardListInDeck(){
   const cards = state.cardsByDeck.get(state.currentDeck.id) || [];
   const el = document.getElementById('cardListInDeck');
