@@ -180,17 +180,21 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
 .card-img{max-width:220px;max-height:160px;border-radius:8px;margin-bottom:12px;object-fit:contain;}
 
 /* ============ AUTH HERO / BACKGROUND ============ */
-.auth-bg{position:fixed;inset:0;z-index:0;background:url('iconfon.png') center/cover no-repeat;background-color:var(--ink);}
-.auth-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,20,24,.35) 0%,rgba(20,20,24,.55) 45%,rgba(20,20,24,.85) 100%);}
-#screen-auth{max-width:380px;margin:0 auto;padding:40px 0;min-height:100vh;display:flex;flex-direction:column;justify-content:center;position:relative;}
+/* Fon rasmi faqat atmosfera — hech qanday matn uning ustiga
+   qo'yilmaydi, shuning uchun istalgan rasmda toza ko'rinadi. */
+.auth-bg{position:fixed;inset:0;z-index:0;background-image:url('iconfon.png');background-repeat:no-repeat;background-size:cover;background-position:center;background-color:var(--ink);}
+.auth-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,16,20,.32) 0%,rgba(15,16,20,.5) 100%);}
+#screen-auth{max-width:380px;margin:0 auto;padding:32px 0;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;position:relative;}
 .auth-content{position:relative;z-index:1;}
-.auth-content .topbar{border:none;margin-bottom:8px;justify-content:center;}
-.auth-content .brand{flex-direction:column;text-align:center;gap:8px;}
-.auth-content .brand .mark{width:44px;height:44px;font-size:22px;box-shadow:0 6px 18px rgba(0,0,0,.3);}
-.auth-content .brand h1{color:#fff;font-size:24px;}
-.auth-tagline{text-align:center;color:rgba(255,255,255,.8);font-size:13px;margin:0 0 26px;font-family:var(--display);font-style:italic;}
-.auth-content .card{background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.55);box-shadow:0 24px 60px rgba(10,10,14,.45);}
+.auth-content .card{background:rgba(255,255,255,.97);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.6);box-shadow:0 24px 70px rgba(10,10,14,.5);padding-top:26px;}
+
+/* brend endi karta ICHIDA — shu tufayli qanday fon rasm bo'lsa ham to'qnashmaydi */
+.auth-card-brand{display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;margin-bottom:22px;}
+.auth-card-brand .mark{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;background:var(--accent);color:#fff;font-family:var(--cjk);font-size:20px;border-radius:10px;box-shadow:0 6px 16px rgba(79,70,214,.35);}
+.auth-card-brand h1{font-family:var(--display);font-size:21px;margin:0;font-weight:500;}
+.auth-card-brand p{margin:0;font-size:12.5px;color:var(--ink-faint);font-style:italic;font-family:var(--display);}
 .auth-tab{transition:color .15s ease;}
+
 
 /* prettier inputs (login/parol) */
 .input-group{position:relative;display:flex;align-items:center;}
@@ -215,8 +219,8 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
 .terms-agree-row input{width:auto;}
 
 @media (max-width:480px){
-  .auth-content .brand h1{font-size:21px;}
-  .auth-tagline{font-size:12.5px;}
+  .auth-card-brand h1{font-size:19px;}
+  .auth-card-brand p{font-size:12px;}
 }
 </style>
 </head>
@@ -227,11 +231,12 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
   <div id="screen-auth">
     <div class="auth-bg"></div>
     <div class="auth-content">
-      <div class="topbar">
-        <div class="brand"><span class="mark">学</span><h1>Flashcards</h1></div>
-      </div>
-      <p class="auth-tagline">Xitoy tilini har kuni bir necha daqiqada o'rganing</p>
       <div class="card">
+        <div class="auth-card-brand">
+          <span class="mark">学</span>
+          <h1>Flashcards</h1>
+          <p>Xitoy tilini har kuni bir necha daqiqada o'rganing</p>
+        </div>
         <div class="auth-toggle">
           <div class="auth-tab active" data-mode="login">Kirish</div>
           <div class="auth-tab" data-mode="register">Ro'yxatdan o'tish</div>
