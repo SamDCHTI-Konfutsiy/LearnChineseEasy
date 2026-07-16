@@ -235,10 +235,13 @@ function switchTab(tab){
 // DATA LOADING
 // ============================================================
 async function loadInitialData(){
+  // Owner_id filtri qasddan qo'yilmagan — RLS o'zi kimga nima ko'rinishi
+  // kerakligini hal qiladi: o'zining decks/books + adminning "ochiq"
+  // qilib qo'ygan kitoblari va ularning mavzulari/kartalari.
   const [{data: decks}, {data: reviews}, {data: books}] = await Promise.all([
-    sb.from('decks').select('*').eq('owner_id', state.user.id).order('created_at'),
+    sb.from('decks').select('*').order('created_at'),
     sb.from('reviews').select('*').eq('user_id', state.user.id),
-    sb.from('books').select('*').eq('owner_id', state.user.id).order('created_at'),
+    sb.from('books').select('*').order('created_at'),
   ]);
   state.decks = decks || [];
   state.books = books || [];
@@ -463,6 +466,15 @@ function openDeckDetail(deck){
   document.getElementById('deckDetailView').classList.remove('hidden');
   document.getElementById('deckDetailName').textContent = deck.name;
   document.getElementById('deckNotesInput').value = deck.notes || '';
+
+  const isOwner = deck.owner_id === state.user.id;
+  ['renameDeckBtn','deleteDeckBtn','deckNotesCard','addCardCard','deckCsvActions'].forEach(id=>{
+    document.getElementById(id).classList.toggle('hidden', !isOwner);
+  });
+  const roNote = document.getElementById('deckReadonlyNote');
+  roNote.classList.toggle('hidden', isOwner);
+  if(!isOwner) roNote.textContent = t('dyn.shared_readonly_deck');
+
   renderCardListInDeck();
 }
 document.getElementById('backToDeckList').addEventListener('click', ()=>{
@@ -503,25 +515,48 @@ document.getElementById('saveDeckNotesBtn').addEventListener('click', async ()=>
 // ichidagi bitta bo'lim, texnik jihatdan oddiy deck (book_id bilan).
 // ============================================================
 function renderBooksList(){
+  const myBooks = state.books.filter(b=>b.owner_id===state.user.id);
+  const sharedBooks = state.books.filter(b=>b.owner_id!==state.user.id && b.is_shared);
+
   const el = document.getElementById('bookList');
-  if(!state.books.length){
+  if(!myBooks.length){
     el.innerHTML = `<p style="color:var(--ink-faint);font-size:13px;">${t('dyn.no_books_yet')}</p>`;
-    return;
+  }else{
+    el.innerHTML = '';
+    myBooks.forEach(book=>{
+      const topicCount = state.decks.filter(d=>d.book_id===book.id).length;
+      const row = document.createElement('div');
+      row.className = 'custom-deck-row';
+      row.style.cursor = 'pointer';
+      row.innerHTML = `<div>
+          <div class="name">📚 ${escapeHtml(book.name)}${book.is_shared ? ` <span class="shared-badge">🌐 ${t('decks.shared_badge')}</span>` : ''}</div>
+          <div class="meta">${topicCount} ${t('dyn.topics_word')}${book.notes ? ' · '+t('dyn.has_note') : ''}</div>
+        </div>
+        <span style="color:var(--ink-faint);font-size:16px;">→</span>`;
+      row.addEventListener('click', ()=> openBookDetail(book));
+      el.appendChild(row);
+    });
   }
-  el.innerHTML = '';
-  state.books.forEach(book=>{
-    const topicCount = state.decks.filter(d=>d.book_id===book.id).length;
-    const row = document.createElement('div');
-    row.className = 'custom-deck-row';
-    row.style.cursor = 'pointer';
-    row.innerHTML = `<div>
-        <div class="name">📚 ${escapeHtml(book.name)}</div>
-        <div class="meta">${topicCount} ${t('dyn.topics_word')}${book.notes ? ' · '+t('dyn.has_note') : ''}</div>
-      </div>
-      <span style="color:var(--ink-faint);font-size:16px;">→</span>`;
-    row.addEventListener('click', ()=> openBookDetail(book));
-    el.appendChild(row);
-  });
+
+  const sharedEl = document.getElementById('sharedBookList');
+  if(!sharedBooks.length){
+    sharedEl.innerHTML = `<p style="color:var(--ink-faint);font-size:13px;">${t('dyn.no_shared_books')}</p>`;
+  }else{
+    sharedEl.innerHTML = '';
+    sharedBooks.forEach(book=>{
+      const topicCount = state.decks.filter(d=>d.book_id===book.id).length;
+      const row = document.createElement('div');
+      row.className = 'custom-deck-row';
+      row.style.cursor = 'pointer';
+      row.innerHTML = `<div>
+          <div class="name">📚 ${escapeHtml(book.name)}</div>
+          <div class="meta">${topicCount} ${t('dyn.topics_word')}</div>
+        </div>
+        <span style="color:var(--ink-faint);font-size:16px;">→</span>`;
+      row.addEventListener('click', ()=> openBookDetail(book));
+      sharedEl.appendChild(row);
+    });
+  }
 }
 document.getElementById('newBookBtn').addEventListener('click', async ()=>{
   const name = prompt(t('dyn.book_name_prompt'));
@@ -538,10 +573,38 @@ function openBookDetail(book){
   document.getElementById('deckListView').classList.add('hidden');
   document.getElementById('deckDetailView').classList.add('hidden');
   document.getElementById('bookDetailView').classList.remove('hidden');
-  document.getElementById('bookDetailName').textContent = '📚 ' + book.name;
+
+  const isOwner = book.owner_id === state.user.id;
+  const isAdmin = state.profile && state.profile.role === 'admin';
+  document.getElementById('bookDetailName').innerHTML = '📚 ' + escapeHtml(book.name) +
+    (book.is_shared ? ` <span class="shared-badge">🌐 ${t('decks.shared_badge')}</span>` : '');
   document.getElementById('bookNotesInput').value = book.notes || '';
+
+  document.getElementById('bookOwnerActions').classList.toggle('hidden', !isOwner);
+  document.getElementById('bookNotesCard').classList.toggle('hidden', !isOwner);
+  document.getElementById('bookTopicActions').classList.toggle('hidden', !isOwner);
+
+  const shareBtn = document.getElementById('shareBookBtn');
+  if(isOwner && isAdmin){
+    shareBtn.classList.remove('hidden');
+    shareBtn.textContent = book.is_shared ? t('decks.unshare_book') : t('decks.share_book');
+  }else{
+    shareBtn.classList.add('hidden');
+  }
+
   renderTopicList();
 }
+document.getElementById('shareBookBtn').addEventListener('click', async ()=>{
+  const newVal = !state.currentBook.is_shared;
+  const {data, error} = await sb.from('books').update({is_shared: newVal}).eq('id', state.currentBook.id).select().single();
+  if(error){ showToast(t('dyn.error_prefix')+error.message); return; }
+  state.currentBook.is_shared = data.is_shared;
+  const idx = state.books.findIndex(b=>b.id===data.id);
+  if(idx>=0) state.books[idx] = data;
+  showToast(newVal ? t('dyn.book_shared') : t('dyn.book_unshared'));
+  openBookDetail(state.currentBook);
+  renderBooksList();
+});
 document.getElementById('backToDeckListFromBook').addEventListener('click', ()=>{
   state.currentBook = null;
   showDeckListView();

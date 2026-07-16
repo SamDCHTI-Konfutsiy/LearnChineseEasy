@@ -134,6 +134,14 @@ uz: {
   'bulk.no_topics_found': 'Hech qanday "===MAVZU: ...===" bloki topilmadi. Formatni tekshiring.',
   'bulk.importing': "Import qilinmoqda...",
   'bulk.success_prefix': "✓ Tayyor:",
+  'decks.shared_books': "Rasmiy kitoblar",
+  'decks.shared_badge': "Ochiq",
+  'decks.share_book': "🌐 Hammaga ochiq qilish",
+  'decks.unshare_book': "🔒 Shaxsiy qilish",
+  'dyn.no_shared_books': "Hozircha rasmiy kitob yo'q.",
+  'dyn.shared_readonly_deck': "Bu — administrator ulashgan mavzu, faqat o'rganish uchun (tahrirlab bo'lmaydi).",
+  'dyn.book_shared': "Kitob hammaga ochiq qilindi",
+  'dyn.book_unshared': "Kitob shaxsiy qilindi",
 },
 
 ru: {
@@ -251,6 +259,14 @@ ru: {
   'bulk.no_topics_found': 'Блоки "===MAVZU: ...===" не найдены. Проверьте формат.',
   'bulk.importing': "Импортируется...",
   'bulk.success_prefix': "✓ Готово:",
+  'decks.shared_books': "Официальные книги",
+  'decks.shared_badge': "Открыто",
+  'decks.share_book': "🌐 Сделать общедоступной",
+  'decks.unshare_book': "🔒 Сделать личной",
+  'dyn.no_shared_books': "Пока нет официальных книг.",
+  'dyn.shared_readonly_deck': "Это тема, открытая администратором — только для изучения (редактировать нельзя).",
+  'dyn.book_shared': "Книга стала общедоступной",
+  'dyn.book_unshared': "Книга стала личной",
 },
 
 zh: {
@@ -368,6 +384,14 @@ zh: {
   'bulk.no_topics_found': "未找到\"===MAVZU: ...===\"标记块，请检查格式。",
   'bulk.importing': "正在导入…",
   'bulk.success_prefix': "✓ 完成：",
+  'decks.shared_books': "官方书籍",
+  'decks.shared_badge': "公开",
+  'decks.share_book': "🌐 设为公开",
+  'decks.unshare_book': "🔒 设为私有",
+  'dyn.no_shared_books': "暂无官方书籍。",
+  'dyn.shared_readonly_deck': "这是管理员公开的课题 — 仅供学习（无法编辑）。",
+  'dyn.book_shared': "书籍已设为公开",
+  'dyn.book_unshared': "书籍已设为私有",
 },
 
 en: {
@@ -485,6 +509,14 @@ en: {
   'bulk.no_topics_found': 'No "===MAVZU: ...===" blocks found. Please check the format.',
   'bulk.importing': "Importing...",
   'bulk.success_prefix': "✓ Done:",
+  'decks.shared_books': "Official Books",
+  'decks.shared_badge': "Public",
+  'decks.share_book': "🌐 Make public",
+  'decks.unshare_book': "🔒 Make private",
+  'dyn.no_shared_books': "No official books yet.",
+  'dyn.shared_readonly_deck': "This is a topic shared by the administrator — for studying only (can't be edited).",
+  'dyn.book_shared': "Book made public",
+  'dyn.book_unshared': "Book made private",
 },
 
 };
