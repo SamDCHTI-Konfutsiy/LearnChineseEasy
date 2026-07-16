@@ -75,21 +75,18 @@ async function loadUsers(){
     const resetBtn = document.createElement('button');
     resetBtn.textContent = 'Parol tiklash';
     resetBtn.className = 'toggle-btn';
-    resetBtn.style.marginLeft = '6px';
     resetBtn.addEventListener('click', ()=> resetPassword(u));
     actionTd.appendChild(resetBtn);
 
     const detailBtn = document.createElement('button');
     detailBtn.textContent = 'HSK sozlamalari';
     detailBtn.className = 'toggle-btn';
-    detailBtn.style.marginLeft = '6px';
     actionTd.appendChild(detailBtn);
 
     const decksBtn = document.createElement('button');
     const userDeckCount = allDecks.filter(d=>d.owner_id===u.id).length;
     decksBtn.textContent = `To'plamlar (${userDeckCount})`;
     decksBtn.className = 'toggle-btn';
-    decksBtn.style.marginLeft = '6px';
     actionTd.appendChild(decksBtn);
 
     tbody.appendChild(tr);
