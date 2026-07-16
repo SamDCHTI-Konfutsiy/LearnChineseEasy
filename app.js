@@ -662,12 +662,21 @@ function renderTopicList(){
     const row = document.createElement('div');
     row.className = 'custom-deck-row';
     row.style.cursor = 'pointer';
-    row.innerHTML = `<div>
-        <div class="name">${i+1}. ${escapeHtml(deck.name)}</div>
-        <div class="meta">${cardCount} ${t('dyn.cards_word')}${due>0?` · ${due} ${t('dyn.due_suffix')}`:''}${deck.notes ? ' · '+t('dyn.has_note') : ''}</div>
-      </div>
-      <span style="color:var(--ink-faint);font-size:16px;">→</span>`;
-    row.addEventListener('click', ()=> openDeckDetail(deck));
+    if(deck.is_locked){
+      row.innerHTML = `<div>
+          <div class="name">${i+1}. ${escapeHtml(deck.name)}</div>
+          <div class="meta">${t('dyn.locked_by_admin')}</div>
+        </div>
+        <span style="font-size:16px;">🔒</span>`;
+      row.addEventListener('click', ()=> showToast(t('dyn.locked_toast')));
+    }else{
+      row.innerHTML = `<div>
+          <div class="name">${i+1}. ${escapeHtml(deck.name)}</div>
+          <div class="meta">${cardCount} ${t('dyn.cards_word')}${due>0?` · ${due} ${t('dyn.due_suffix')}`:''}${deck.notes ? ' · '+t('dyn.has_note') : ''}</div>
+        </div>
+        <span style="color:var(--ink-faint);font-size:16px;">→</span>`;
+      row.addEventListener('click', ()=> openDeckDetail(deck));
+    }
     el.appendChild(row);
   });
 }
