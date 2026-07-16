@@ -25,6 +25,20 @@
   --display:Georgia,"Iowan Old Style","Times New Roman",serif;
   --cjk:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
 }
+/* KECHKI REJIM — xuddi shu o'zgaruvchilarning qorong'i qiymatlari.
+   Butun sayt shu o'zgaruvchilar orqali rang oladi, shuning uchun
+   faqat shu blokni almashtirish YETARLI — boshqa hech narsaga tegilmaydi. */
+html[data-theme="dark"]{
+  --paper:#1B1C21; --surface:#232429;
+  --ink:#EDEBE4; --ink-soft:#B6B3AC; --ink-faint:#7D7A73;
+  --line:#3A3B42; --line-soft:#2C2D33;
+  --accent:#8B83F5; --accent-soft:#2C2A54; --accent-ink:#15141F;
+  --good:#6FCBA9; --good-soft:#1D3630;
+  --warn:#E0B25C; --warn-soft:#3A311D;
+  --bad:#E8837D; --bad-soft:#3C2422;
+  --shadow:0 1px 2px rgba(0,0,0,.25),0 6px 18px rgba(0,0,0,.35);
+}
+html, body{ transition:background-color .2s ease, color .2s ease; }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
 body{
@@ -47,6 +61,16 @@ h1,h2,h3{font-weight:500;}
 .navbtn:hover{color:var(--ink);}
 .navbtn.active{background:var(--ink);color:var(--paper);}
 .navbtn.ghost{border-color:var(--line);}
+.icon-btn{padding:7px 10px;font-size:14px;line-height:1;}
+
+/* til almashtirgich */
+.lang-switch{display:flex;gap:4px;}
+.lang-btn{font-size:11.5px;font-weight:700;padding:5px 9px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink-faint);cursor:pointer;text-transform:uppercase;letter-spacing:.02em;}
+.lang-btn:hover{color:var(--ink);}
+.lang-btn.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+#authLangSwitch{position:fixed;top:16px;right:16px;z-index:2;}
+#authLangSwitch .lang-btn{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.85);backdrop-filter:blur(6px);}
+#authLangSwitch .lang-btn.active{background:#fff;color:var(--ink);border-color:#fff;}
 
 /* cards / surfaces */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);}
@@ -230,35 +254,36 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
   <!-- ============ AUTH SCREEN ============ -->
   <div id="screen-auth">
     <div class="auth-bg"></div>
+    <div class="lang-switch" id="authLangSwitch"></div>
     <div class="auth-content">
       <div class="card">
         <div class="auth-card-brand">
           <span class="mark">学</span>
           <h1>Flashcards</h1>
-          <p>Xitoy tilini har kuni bir necha daqiqada o'rganing</p>
+          <p data-i18n="auth.tagline">Xitoy tilini har kuni bir necha daqiqada o'rganing</p>
         </div>
         <div class="auth-toggle">
-          <div class="auth-tab active" data-mode="login">Kirish</div>
-          <div class="auth-tab" data-mode="register">Ro'yxatdan o'tish</div>
+          <div class="auth-tab active" data-mode="login" data-i18n="auth.login_tab">Kirish</div>
+          <div class="auth-tab" data-mode="register" data-i18n="auth.register_tab">Ro'yxatdan o'tish</div>
         </div>
         <form id="authForm">
           <div class="field">
-            <label>Email</label>
+            <label data-i18n="auth.email_label">Email</label>
             <div class="input-group">
               <span class="input-icon">✉</span>
               <input type="email" id="authEmail" required autocomplete="email" placeholder="siz@email.com">
             </div>
           </div>
           <div class="field">
-            <label>Parol</label>
+            <label data-i18n="auth.password_label">Parol</label>
             <div class="input-group">
               <span class="input-icon">🔒</span>
-              <input type="password" id="authPassword" required minlength="6" autocomplete="current-password" class="has-toggle" placeholder="Kamida 6 ta belgi">
-              <button type="button" class="input-toggle" id="togglePwBtn" aria-label="Parolni ko'rsatish">👁</button>
+              <input type="password" id="authPassword" required minlength="6" autocomplete="current-password" class="has-toggle" data-i18n-placeholder="auth.password_placeholder" placeholder="Kamida 6 ta belgi">
+              <button type="button" class="input-toggle" id="togglePwBtn" data-i18n-aria="auth.show_password" aria-label="Parolni ko'rsatish">👁</button>
             </div>
           </div>
           <div class="btn-row" style="margin-top:16px;">
-            <button type="submit" class="btn" id="authSubmitBtn" style="width:100%;">Kirish</button>
+            <button type="submit" class="btn" id="authSubmitBtn" style="width:100%;" data-i18n="auth.login_tab">Kirish</button>
           </div>
           <div class="err-msg" id="authErr"></div>
         </form>
@@ -270,9 +295,9 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
   <div id="screen-blocked" class="hidden">
     <div class="blocked-box card">
       <div class="icon">⛔</div>
-      <h2>Hisobingiz faollashtirilmagan</h2>
-      <p style="color:var(--ink-soft);font-size:14px;">Administrator hisobingizni vaqtincha bloklagan. Savollaringiz bo'lsa, administratorga murojaat qiling.</p>
-      <button class="btn secondary" id="blockedLogoutBtn">Chiqish</button>
+      <h2 data-i18n="blocked.title">Hisobingiz faollashtirilmagan</h2>
+      <p style="color:var(--ink-soft);font-size:14px;" data-i18n="blocked.body">Administrator hisobingizni vaqtincha bloklagan. Savollaringiz bo'lsa, administratorga murojaat qiling.</p>
+      <button class="btn secondary" id="blockedLogoutBtn" data-i18n="nav.logout">Chiqish</button>
     </div>
   </div>
 
@@ -280,17 +305,19 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
   <div id="screen-app" class="hidden">
     <div class="topbar">
       <div class="brand"><span class="mark">学</span><h1>Flashcards</h1></div>
+      <div class="lang-switch" id="appLangSwitch"></div>
       <div class="topnav">
-        <button class="navbtn active" data-tab="dashboard">Bosh sahifa</button>
-        <button class="navbtn" data-tab="decks">To'plamlar</button>
-        <button class="navbtn" data-tab="words">So'zlar</button>
-        <button class="navbtn" data-tab="profil">Profil</button>
-        <button class="navbtn ghost hidden" id="hskManageLink" data-tab="hskmanage">HSK boshqaruvi</button>
-        <a id="adminLink" href="admin.html" class="navbtn ghost hidden">Admin</a>
-        <button class="navbtn ghost" id="logoutBtn">Chiqish</button>
+        <button class="navbtn active" data-tab="dashboard" data-i18n="nav.dashboard">Bosh sahifa</button>
+        <button class="navbtn" data-tab="decks" data-i18n="nav.decks">To'plamlar</button>
+        <button class="navbtn" data-tab="words" data-i18n="nav.words">So'zlar</button>
+        <button class="navbtn" data-tab="profil" data-i18n="nav.profile">Profil</button>
+        <button class="navbtn ghost hidden" id="hskManageLink" data-tab="hskmanage" data-i18n="nav.hsk_manage">HSK boshqaruvi</button>
+        <a id="adminLink" href="admin.html" class="navbtn ghost hidden" data-i18n="nav.admin">Admin</a>
+        <button class="navbtn ghost icon-btn" id="themeToggleBtn" data-i18n-aria="nav.toggle_theme" aria-label="Rejimni almashtirish" title="Kunduzgi/kechki rejim">🌙</button>
+        <button class="navbtn ghost" id="logoutBtn" data-i18n="nav.logout">Chiqish</button>
       </div>
     </div>
-    <div class="offline-banner" id="offlineBanner">📡 Internet yo'q — offline rejimda ishlayapsiz. Natijalar internet qaytganda saqlanadi.</div>
+    <div class="offline-banner" id="offlineBanner" data-i18n="app.offline_banner">📡 Internet yo'q — offline rejimda ishlayapsiz. Natijalar internet qaytganda saqlanadi.</div>
     <div class="announcement-banner" id="announcementBanner">
       <span class="msg">📢 <span id="announcementText"></span></span>
       <button class="close-x" id="announcementCloseBtn" aria-label="Yopish">&times;</button>
@@ -299,53 +326,86 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
     <!-- DASHBOARD TAB -->
     <div id="tab-dashboard" class="tabpanel">
       <div class="stats-row" id="statsRow"></div>
-      <p class="section-label">HSK darajalar</p>
+      <p class="section-label" data-i18n="dash.hsk_levels">HSK darajalar</p>
       <div class="deck-grid" id="hskGrid"></div>
-      <p class="section-label">Mening to'plamlarim</p>
+      <p class="section-label" data-i18n="dash.my_decks">Mening to'plamlarim</p>
       <div id="customDeckList"></div>
-      <button class="btn secondary" id="newDeckBtnDash">+ Yangi to'plam</button>
+      <button class="btn secondary" id="newDeckBtnDash" data-i18n="decks.new_deck">+ Yangi to'plam</button>
     </div>
 
     <!-- DECKS TAB -->
     <div id="tab-decks" class="tabpanel hidden">
       <div id="deckListView">
-        <p class="section-label">HSK darajalar</p>
+        <p class="section-label" data-i18n="dash.hsk_levels">HSK darajalar</p>
         <div class="deck-grid" id="hskGridDecks"></div>
         <div class="btn-row" style="margin-bottom:16px;">
-          <button class="btn" id="newDeckBtn">+ Yangi to'plam</button>
+          <button class="btn" id="newDeckBtn" data-i18n="decks.new_deck">+ Yangi to'plam</button>
         </div>
-        <p class="section-label">Mening to'plamlarim</p>
+        <p class="section-label" data-i18n="decks.my_books">Mening kitoblarim</p>
+        <div id="bookList" style="margin-bottom:10px;"></div>
+        <div class="btn-row" style="margin-bottom:24px;">
+          <button class="btn secondary" id="newBookBtn" data-i18n="decks.new_book">+ Yangi kitob</button>
+        </div>
+        <p class="section-label" data-i18n="dash.my_decks">Mening to'plamlarim</p>
         <div id="customDeckList2"></div>
       </div>
+
+      <!-- KITOB ICHKARISI (mavzular ro'yxati) -->
+      <div id="bookDetailView" class="hidden">
+        <button class="btn secondary" id="backToDeckListFromBook" data-i18n="decks.back_to_books" style="margin-bottom:14px;">← Kitoblarga qaytish</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <h2 id="bookDetailName" style="margin:0;"></h2>
+          <div class="btn-row">
+            <button class="btn secondary" id="renameBookBtn" data-i18n="decks.rename">Nomini o'zgartirish</button>
+            <button class="btn danger" id="deleteBookBtn" data-i18n="decks.delete_book">Kitobni o'chirish</button>
+          </div>
+        </div>
+        <div class="card" style="margin:14px 0 20px;">
+          <label style="margin-top:0;" data-i18n="decks.notes_label">Izoh (faqat sizga ko'rinadi)</label>
+          <textarea id="bookNotesInput" rows="3" data-i18n-placeholder="decks.book_notes_placeholder" placeholder="Masalan: bu kitobning 1-15 mavzulari fe'llarga bag'ishlangan..."></textarea>
+          <button class="btn secondary" id="saveBookNotesBtn" style="margin-top:10px;" data-i18n="decks.save_notes">Izohni saqlash</button>
+        </div>
+        <div class="btn-row" style="margin-bottom:16px;">
+          <button class="btn" id="newTopicBtn" data-i18n="decks.new_topic">+ Yangi mavzu</button>
+        </div>
+        <p class="section-label" data-i18n="decks.topics">Mavzular</p>
+        <div id="topicList"></div>
+      </div>
+
       <div id="deckDetailView" class="hidden">
-        <button class="btn secondary" id="backToDeckList" style="margin-bottom:14px;">← Orqaga</button>
+        <button class="btn secondary" id="backToDeckList" data-i18n="decks.back" style="margin-bottom:14px;">← Orqaga</button>
         <h2 id="deckDetailName"></h2>
         <div class="btn-row" style="margin:10px 0 20px;">
-          <button class="btn" id="studyThisDeckBtn">O'rganish</button>
-          <button class="btn secondary" id="renameDeckBtn">Nomini o'zgartirish</button>
-          <button class="btn danger" id="deleteDeckBtn">To'plamni o'chirish</button>
+          <button class="btn" id="studyThisDeckBtn" data-i18n="decks.study">O'rganish</button>
+          <button class="btn secondary" id="renameDeckBtn" data-i18n="decks.rename">Nomini o'zgartirish</button>
+          <button class="btn danger" id="deleteDeckBtn" data-i18n="decks.delete_deck">To'plamni o'chirish</button>
         </div>
         <div class="card" style="margin-bottom:16px;">
-          <p class="section-label" style="margin-bottom:12px;" id="cardFormLabel">Karta qo'shish</p>
+          <label style="margin-top:0;" data-i18n="decks.notes_label">Izoh (faqat sizga ko'rinadi)</label>
+          <textarea id="deckNotesInput" rows="3" data-i18n-placeholder="decks.deck_notes_placeholder" placeholder="Bu to'plam haqida o'zingiz uchun eslatma..."></textarea>
+          <button class="btn secondary" id="saveDeckNotesBtn" style="margin-top:10px;" data-i18n="decks.save_notes">Izohni saqlash</button>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <p class="section-label" style="margin-bottom:12px;" id="cardFormLabel" data-i18n="decks.add_card">Karta qo'shish</p>
           <form id="addCardForm">
-            <div class="field"><label>Old tomon (savol)</label><input id="cardFront" required></div>
-            <div class="field"><label>Orqa tomon (javob)</label><input id="cardBack" required></div>
-            <div class="field"><label>Ieroglif (ixtiyoriy — yozish katagi ko'rsatiladi)</label><input id="cardHanzi"></div>
-            <div class="field"><label>Pinyin (ixtiyoriy)</label><input id="cardPinyin"></div>
-            <div class="field"><label>Rasm havolasi (ixtiyoriy)</label><input id="cardImage" placeholder="https://..."></div>
+            <div class="field"><label data-i18n="decks.card_front">Old tomon (savol)</label><input id="cardFront" required></div>
+            <div class="field"><label data-i18n="decks.card_back">Orqa tomon (javob)</label><input id="cardBack" required></div>
+            <div class="field"><label data-i18n="decks.card_hanzi">Ieroglif (ixtiyoriy — yozish katagi ko'rsatiladi)</label><input id="cardHanzi"></div>
+            <div class="field"><label data-i18n="decks.card_pinyin">Pinyin (ixtiyoriy)</label><input id="cardPinyin"></div>
+            <div class="field"><label data-i18n="decks.card_image">Rasm havolasi (ixtiyoriy)</label><input id="cardImage" placeholder="https://..."></div>
             <div class="btn-row" style="margin-top:14px;">
-              <button type="submit" class="btn" id="cardFormSubmitBtn">Qo'shish</button>
-              <button type="button" class="btn secondary hidden" id="cancelEditCardBtn">Bekor qilish</button>
+              <button type="submit" class="btn" id="cardFormSubmitBtn" data-i18n="decks.add">Qo'shish</button>
+              <button type="button" class="btn secondary hidden" id="cancelEditCardBtn" data-i18n="decks.cancel">Bekor qilish</button>
             </div>
           </form>
         </div>
         <div class="btn-row" style="margin-bottom:16px;">
-          <button class="btn secondary" id="exportDeckCsvBtn">CSV eksport</button>
-          <label class="btn secondary file-btn">CSV import
+          <button class="btn secondary" id="exportDeckCsvBtn" data-i18n="decks.csv_export">CSV eksport</button>
+          <label class="btn secondary file-btn" data-i18n="decks.csv_import">CSV import
             <input type="file" id="importDeckCsv" accept=".csv" style="display:none;">
           </label>
         </div>
-        <p class="section-label">Kartalar</p>
+        <p class="section-label" data-i18n="decks.cards">Kartalar</p>
         <div id="cardListInDeck"></div>
       </div>
     </div>
@@ -353,46 +413,56 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
     <!-- PROFIL TAB -->
     <div id="tab-profil" class="tabpanel hidden">
       <div class="card" style="margin-bottom:16px;">
-        <p class="section-label" style="margin-bottom:6px;">O'rganish rejimi</p>
-        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;">Barcha o'rganish sessiyalarida shu rejim ishlatiladi.</p>
+        <p class="section-label" style="margin-bottom:6px;" data-i18n="profil.study_mode">O'rganish rejimi</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;" data-i18n="profil.study_mode_desc">Barcha o'rganish sessiyalarida shu rejim ishlatiladi.</p>
         <div class="field">
           <select id="studyModeSelect">
-            <option value="flashcard">Fleshkarta — SRS bilan takrorlash</option>
-            <option value="quiz">Viktorina — 4 variantdan tanlash</option>
-            <option value="listen">Tinglash — talaffuzni eshitib top</option>
-            <option value="type">Pinyin yozish — klaviaturada tering</option>
+            <option value="flashcard" data-i18n="profil.mode_flashcard">Fleshkarta — SRS bilan takrorlash</option>
+            <option value="quiz" data-i18n="profil.mode_quiz">Viktorina — 4 variantdan tanlash</option>
+            <option value="listen" data-i18n="profil.mode_listen">Tinglash — talaffuzni eshitib top</option>
+            <option value="type" data-i18n="profil.mode_type">Pinyin yozish — klaviaturada tering</option>
           </select>
         </div>
       </div>
       <div class="card" style="margin-bottom:16px;">
-        <p class="section-label" style="margin-bottom:6px;">Bildirishnomalar</p>
-        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;">Yoqsangiz, ilova yopiq bo'lsa ham muhim xabarlar va eslatmalar telefoningizga push-bildirishnoma sifatida keladi.</p>
-        <button class="btn secondary" id="togglePushBtn">Bildirishnomalarni yoqish</button>
+        <p class="section-label" style="margin-bottom:6px;" data-i18n="profil.language">Til</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;" data-i18n="profil.language_desc">Interfeys tilini tanlang.</p>
+        <div class="lang-switch" id="profilLangSwitch"></div>
       </div>
       <div class="card" style="margin-bottom:16px;">
-        <p class="section-label" style="margin-bottom:6px;">Ovoz sozlamalari (TTS)</p>
-        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;">Ierogliflarni o'qiydigan ovozni tanlang. "Mahalliy/offline" deb belgilanganlari internetsiz ham ishlaydi, "Internet talab qiladi" deganlari tarmoqqa muhtoj lekin ko'pincha sifatliroq bo'ladi.</p>
+        <p class="section-label" style="margin-bottom:6px;" data-i18n="profil.theme">Ko'rinish</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;" data-i18n="profil.theme_desc">Kunduzgi yoki kechki rejimni tanlang.</p>
+        <button class="btn secondary" id="themeToggleBtnProfil" data-i18n="profil.toggle_theme">🌙 Kechki rejimga o'tish</button>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <p class="section-label" style="margin-bottom:6px;" data-i18n="profil.notifications">Bildirishnomalar</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;" data-i18n="profil.notifications_desc">Yoqsangiz, ilova yopiq bo'lsa ham muhim xabarlar va eslatmalar telefoningizga push-bildirishnoma sifatida keladi.</p>
+        <button class="btn secondary" id="togglePushBtn" data-i18n="profil.enable_push">Bildirishnomalarni yoqish</button>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <p class="section-label" style="margin-bottom:6px;" data-i18n="profil.tts">Ovoz sozlamalari (TTS)</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;" data-i18n="profil.tts_desc">Ierogliflarni o'qiydigan ovozni tanlang. "Mahalliy/offline" deb belgilanganlari internetsiz ham ishlaydi, "Internet talab qiladi" deganlari tarmoqqa muhtoj lekin ko'pincha sifatliroq bo'ladi.</p>
         <div class="field">
-          <label>Xitoycha ovoz</label>
+          <label data-i18n="profil.tts_voice">Xitoycha ovoz</label>
           <select id="voiceSelect"></select>
         </div>
-        <button class="btn secondary" id="testVoiceBtn" style="margin-top:10px;">Sinab ko'rish (你好)</button>
+        <button class="btn secondary" id="testVoiceBtn" style="margin-top:10px;" data-i18n="profil.tts_test">Sinab ko'rish (你好)</button>
       </div>
       <div class="card" style="margin-bottom:16px;">
-        <p class="section-label" style="margin-bottom:12px;">Parolni o'zgartirish</p>
+        <p class="section-label" style="margin-bottom:12px;" data-i18n="profil.change_password">Parolni o'zgartirish</p>
         <form id="changePasswordForm">
-          <div class="field"><label>Yangi parol</label><input type="password" id="newPassword" minlength="6" required autocomplete="new-password"></div>
-          <div class="field"><label>Yangi parolni tasdiqlang</label><input type="password" id="newPassword2" minlength="6" required autocomplete="new-password"></div>
-          <button type="submit" class="btn" style="margin-top:14px;">Parolni yangilash</button>
+          <div class="field"><label data-i18n="profil.new_password">Yangi parol</label><input type="password" id="newPassword" minlength="6" required autocomplete="new-password"></div>
+          <div class="field"><label data-i18n="profil.confirm_password">Yangi parolni tasdiqlang</label><input type="password" id="newPassword2" minlength="6" required autocomplete="new-password"></div>
+          <button type="submit" class="btn" style="margin-top:14px;" data-i18n="profil.update_password">Parolni yangilash</button>
           <div class="err-msg" id="pwErr"></div>
         </form>
       </div>
       <div class="card">
-        <p class="section-label" style="margin-bottom:6px;">To'liq zaxira</p>
-        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;">To'plamlaringiz, kartalaringiz va o'rganish natijalaringizni JSON fayl sifatida yuklab oling yoki tiklang.</p>
+        <p class="section-label" style="margin-bottom:6px;" data-i18n="profil.backup">To'liq zaxira</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;" data-i18n="profil.backup_desc">To'plamlaringiz, kartalaringiz va o'rganish natijalaringizni JSON fayl sifatida yuklab oling yoki tiklang.</p>
         <div class="btn-row">
-          <button class="btn secondary" id="exportBackupBtn">JSON zaxira yuklab olish</button>
-          <label class="btn secondary file-btn">JSON'dan tiklash
+          <button class="btn secondary" id="exportBackupBtn" data-i18n="profil.backup_export">JSON zaxira yuklab olish</button>
+          <label class="btn secondary file-btn" data-i18n="profil.backup_import">JSON'dan tiklash
             <input type="file" id="importBackupJson" accept=".json" style="display:none;">
           </label>
         </div>
@@ -403,41 +473,41 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
     <div id="tab-words" class="tabpanel hidden">
       <div class="btn-row" style="margin-bottom:14px;align-items:center;">
         <select id="wordsLevelSelect" style="max-width:160px;"></select>
-        <input id="wordsSearchInput" placeholder="Qidirish (ieroglif, pinyin, ma'no)..." style="flex:1;min-width:180px;">
+        <input id="wordsSearchInput" data-i18n-placeholder="words.search_placeholder" placeholder="Qidirish (ieroglif, pinyin, ma'no)..." style="flex:1;min-width:180px;">
       </div>
       <div id="wordsListWrap"></div>
       <div class="btn-row" style="margin-top:14px;">
-        <button class="btn secondary hidden" id="loadMoreWordsBtn">Yana yuklash</button>
+        <button class="btn secondary hidden" id="loadMoreWordsBtn" data-i18n="words.load_more">Yana yuklash</button>
       </div>
     </div>
 
     <!-- HSK BOSHQARUVI TAB (faqat muharrirlar/admin uchun) -->
     <div id="tab-hskmanage" class="tabpanel hidden">
       <div class="card" style="margin-bottom:16px;">
-        <p class="section-label" style="margin-bottom:6px;">Yangi so'z qo'shish</p>
-        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;">Bu yerda qo'shgan so'zlaringiz barcha foydalanuvchilarga ko'rinadi.</p>
+        <p class="section-label" style="margin-bottom:6px;" data-i18n="hskmanage.add_word">Yangi so'z qo'shish</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;" data-i18n="hskmanage.add_word_desc">Bu yerda qo'shgan so'zlaringiz barcha foydalanuvchilarga ko'rinadi.</p>
         <form id="addHskWordForm">
-          <div class="field"><label>Ieroglif</label><input id="hskWordHanzi" required></div>
-          <div class="field"><label>Pinyin</label><input id="hskWordPinyin" required></div>
-          <div class="field"><label>Ma'nosi (o'zbekcha)</label><input id="hskWordMeaning" required></div>
+          <div class="field"><label data-i18n="hskmanage.hanzi">Ieroglif</label><input id="hskWordHanzi" required></div>
+          <div class="field"><label data-i18n="hskmanage.pinyin">Pinyin</label><input id="hskWordPinyin" required></div>
+          <div class="field"><label data-i18n="hskmanage.meaning">Ma'nosi (o'zbekcha)</label><input id="hskWordMeaning" required></div>
           <div class="field">
-            <label>HSK darajasi</label>
+            <label data-i18n="hskmanage.level">HSK darajasi</label>
             <select id="hskWordLevel">
               <option value="1">HSK 1</option><option value="2">HSK 2</option><option value="3">HSK 3</option>
               <option value="4">HSK 4</option><option value="5">HSK 5</option><option value="6">HSK 6</option>
             </select>
           </div>
-          <button type="submit" class="btn" style="margin-top:14px;">Qo'shish</button>
+          <button type="submit" class="btn" style="margin-top:14px;" data-i18n="decks.add">Qo'shish</button>
         </form>
       </div>
-      <p class="section-label">Qo'shilgan so'zlar</p>
+      <p class="section-label" data-i18n="hskmanage.added_words">Qo'shilgan so'zlar</p>
       <div id="customHskWordList"></div>
     </div>
 
     <!-- STUDY TAB -->
     <div id="tab-study" class="tabpanel hidden">
       <div class="study-head">
-        <button class="btn secondary" id="exitStudyBtn">← Chiqish</button>
+        <button class="btn secondary" id="exitStudyBtn" data-i18n="study.exit">← Chiqish</button>
         <span class="study-meta" id="studyMeta"></span>
       </div>
       <div class="card-stage" id="cardStage"></div>
@@ -454,12 +524,12 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
       <div class="modal-body">
         <iframe id="hzModalFrame" src="about:blank" title="Ieroglif yozilish tartibi"></iframe>
         <div class="modal-fallback" id="hzModalFallback">
-          <p>Bu ierogliflarni saytda ko'rsatib bo'lmadi.</p>
-          <a id="hzModalOpenNew" href="#" target="_blank" rel="noopener" class="btn secondary">Yangi tabda ochish</a>
+          <p data-i18n="modal.hanzi_fallback">Bu ierogliflarni saytda ko'rsatib bo'lmadi.</p>
+          <a id="hzModalOpenNew" href="#" target="_blank" rel="noopener" class="btn secondary" data-i18n="modal.open_new_tab">Yangi tabda ochish</a>
         </div>
       </div>
       <div class="modal-foot">
-        <a id="hzModalOpenNew2" href="#" target="_blank" rel="noopener" style="font-size:12.5px;">Yangi tabda ochish ↗</a>
+        <a id="hzModalOpenNew2" href="#" target="_blank" rel="noopener" style="font-size:12.5px;" data-i18n="modal.open_new_tab_arrow">Yangi tabda ochish ↗</a>
       </div>
     </div>
   </div>
@@ -468,7 +538,7 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
   <div class="modal-overlay" id="termsModal">
     <div class="modal-box terms">
       <div class="modal-head">
-        <h3 style="font-family:var(--display);font-size:18px;font-weight:600;">Foydalanish shartlari</h3>
+        <h3 style="font-family:var(--display);font-size:18px;font-weight:600;" data-i18n="terms.title">Foydalanish shartlari</h3>
       </div>
       <div class="modal-body">
         <h4>Xizmat haqida</h4>
@@ -485,9 +555,9 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
       <div class="modal-foot" style="display:flex;align-items:center;justify-content:space-between;gap:14px;text-align:left;">
         <label class="terms-agree-row">
           <input type="checkbox" id="termsAgreeCheck">
-          O'qidim va roziman
+          <span data-i18n="terms.agree">O'qidim va roziman</span>
         </label>
-        <button class="btn" id="termsAcceptBtn" disabled>Davom etish</button>
+        <button class="btn" id="termsAcceptBtn" disabled data-i18n="terms.continue">Davom etish</button>
       </div>
     </div>
   </div>
@@ -495,14 +565,15 @@ label{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:block;margi
   <div class="toast" id="toast"></div>
 
   <footer class="site-footer">
-    <p>© <span id="footerYear"></span> 汉字课 · Flashcards. Barcha huquqlar himoyalangan.</p>
-    <p><a href="#" id="openTermsLink">Foydalanish shartlari va maxfiylik siyosati</a></p>
+    <p>© <span id="footerYear"></span> 汉字课 · Flashcards. <span data-i18n="footer.rights">Barcha huquqlar himoyalangan.</span></p>
+    <p><a href="#" id="openTermsLink" data-i18n="footer.terms_link">Foydalanish shartlari va maxfiylik siyosati</a></p>
   </footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="hsk-data.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 <script>
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

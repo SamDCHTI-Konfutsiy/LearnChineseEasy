@@ -10,12 +10,13 @@
 // Shunday qilib kod yangilanganda foydalanuvchi doim eng so'nggi
 // versiyani ko'radi, "yarim eski / yarim yangi" holat bo'lmaydi.
 // ============================================================
-const CACHE_VERSION = 'v3'; // Har safar sw.js ni o'zgartirganda bu raqamni oshiring
+const CACHE_VERSION = 'v4'; // Har safar sw.js ni o'zgartirganda bu raqamni oshiring
 const CACHE_NAME = `flashcards-${CACHE_VERSION}`;
 const APP_SHELL = [
   './',
   './index.html',
   './config.js',
+  './i18n.js',
   './app.js',
   './hsk-data.js',
   './manifest.json',

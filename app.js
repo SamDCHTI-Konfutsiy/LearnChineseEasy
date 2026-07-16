@@ -4,6 +4,8 @@ const state = {
   user: null,
   profile: null,
   decks: [],
+  books: [],
+  currentBook: null,
   cardsByDeck: new Map(),
   reviews: new Map(),
   currentDeck: null,
@@ -56,6 +58,50 @@ function updateOfflineBanner(){
 updateOfflineBanner();
 window.addEventListener('offline', updateOfflineBanner);
 window.addEventListener('online', ()=>{ updateOfflineBanner(); flushOfflineQueue(); });
+
+// ============================================================
+// KUNDUZGI / KECHKI REJIM (dark mode)
+// ============================================================
+const THEME_KEY = 'flashcards_theme';
+function getTheme(){
+  try{
+    const saved = localStorage.getItem(THEME_KEY);
+    if(saved==='dark' || saved==='light') return saved;
+  }catch(e){}
+  return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+}
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  const isDark = theme==='dark';
+  const topbarBtn = document.getElementById('themeToggleBtn');
+  if(topbarBtn) topbarBtn.textContent = isDark ? '☀️' : '🌙';
+  const profilBtn = document.getElementById('themeToggleBtnProfil');
+  if(profilBtn) profilBtn.textContent = t(isDark ? 'profil.toggle_theme_light' : 'profil.toggle_theme');
+}
+function toggleTheme(){
+  const next = getTheme()==='dark' ? 'light' : 'dark';
+  try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
+  applyTheme(next);
+}
+applyTheme(getTheme());
+document.getElementById('themeToggleBtn')?.addEventListener('click', toggleTheme);
+document.getElementById('themeToggleBtnProfil')?.addEventListener('click', toggleTheme);
+
+// Til almashganda ekranda ko'rinib turgan ro'yxatlarni (ular JS orqali
+// yaratilgani uchun data-i18n qamrab olmaydi) qayta chizamiz.
+function onLanguageChanged(){
+  applyTheme(getTheme()); // profildagi tugma matnini ham yangilaydi
+  if(!state.user) return;
+  renderDashboard();
+  if(!document.getElementById('tab-decks').classList.contains('hidden')){
+    if(!document.getElementById('bookDetailView').classList.contains('hidden')){
+      renderTopicList();
+    }else{
+      renderCustomDecks('customDeckList2');
+      renderBooksList();
+    }
+  }
+}
 
 // ============================================================
 // AUTH
@@ -179,7 +225,7 @@ function switchTab(tab){
   document.querySelectorAll('.navbtn[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.tabpanel').forEach(p=>p.classList.add('hidden'));
   document.getElementById('tab-'+tab).classList.remove('hidden');
-  if(tab==='decks'){ showDeckListView(); renderHskGrid('hskGridDecks'); renderCustomDecks('customDeckList2'); }
+  if(tab==='decks'){ showDeckListView(); state.currentBook = null; renderHskGrid('hskGridDecks'); renderCustomDecks('customDeckList2'); renderBooksList(); }
   if(tab==='profil'){ populateVoiceSelect(); updatePushButtonState(); }
   if(tab==='hskmanage'){ renderCustomHskWordList(); }
   if(tab==='words'){ initWordsTab(); }
@@ -189,11 +235,13 @@ function switchTab(tab){
 // DATA LOADING
 // ============================================================
 async function loadInitialData(){
-  const [{data: decks}, {data: reviews}] = await Promise.all([
+  const [{data: decks}, {data: reviews}, {data: books}] = await Promise.all([
     sb.from('decks').select('*').eq('owner_id', state.user.id).order('created_at'),
     sb.from('reviews').select('*').eq('user_id', state.user.id),
+    sb.from('books').select('*').eq('owner_id', state.user.id).order('created_at'),
   ]);
   state.decks = decks || [];
+  state.books = books || [];
   state.reviews = new Map((reviews||[]).map(r=>[r.card_key, r]));
   if(state.decks.length){
     const ids = state.decks.map(d=>d.id);
@@ -354,12 +402,13 @@ function renderDashboard(){
 }
 function renderCustomDecks(containerId){
   const el = document.getElementById(containerId);
-  if(!state.decks.length){
-    el.innerHTML = `<p style="color:var(--ink-faint);font-size:13px;">Hali to'plam yo'q. Pastdagi tugma orqali birinchi to'plamingizni yarating.</p>`;
+  const standalone = state.decks.filter(d=>!d.book_id);
+  if(!standalone.length){
+    el.innerHTML = `<p style="color:var(--ink-faint);font-size:13px;">${t('dyn.no_decks_yet')}</p>`;
     return;
   }
   el.innerHTML = '';
-  state.decks.forEach(deck=>{
+  standalone.forEach(deck=>{
     const cardCount = (state.cardsByDeck.get(deck.id)||[]).length;
     const due = deckDueCount(deck.id);
     const row = document.createElement('div');
@@ -368,17 +417,17 @@ function renderCustomDecks(containerId){
     if(deck.is_locked){
       row.innerHTML = `<div>
           <div class="name">${escapeHtml(deck.name)}</div>
-          <div class="meta">Administrator tomonidan yopilgan</div>
+          <div class="meta">${t('dyn.locked_by_admin')}</div>
         </div>
         <span style="font-size:16px;">🔒</span>`;
-      row.addEventListener('click', ()=> showToast("Bu to'plam administrator tomonidan yopilgan"));
+      row.addEventListener('click', ()=> showToast(t('dyn.locked_toast')));
     }else{
       row.innerHTML = `<div>
           <div class="name">${escapeHtml(deck.name)}</div>
-          <div class="meta">${cardCount} karta${due>0?` · ${due} ta o'rganish kutmoqda`:''}</div>
+          <div class="meta">${cardCount} ${t('dyn.cards_word')}${due>0?` · ${due} ${t('dyn.due_suffix')}`:''}</div>
         </div>
         <span style="color:var(--ink-faint);font-size:16px;">→</span>`;
-      row.addEventListener('click', ()=>{ switchTab('decks'); openDeckDetail(deck); });
+      row.addEventListener('click', ()=>{ switchTab('decks'); state.currentBook = null; openDeckDetail(deck); });
     }
     el.appendChild(row);
   });
@@ -386,13 +435,13 @@ function renderCustomDecks(containerId){
 document.getElementById('newDeckBtnDash').addEventListener('click', createDeckPrompt);
 document.getElementById('newDeckBtn').addEventListener('click', createDeckPrompt);
 async function createDeckPrompt(){
-  const name = prompt("To'plam nomi:");
+  const name = prompt(t('dyn.deck_name_prompt'));
   if(!name || !name.trim()) return;
   const {data, error} = await sb.from('decks').insert({owner_id: state.user.id, name: name.trim()}).select().single();
-  if(error){ showToast("Xatolik: "+error.message); return; }
+  if(error){ showToast(t('dyn.error_prefix')+error.message); return; }
   state.decks.push(data);
   state.cardsByDeck.set(data.id, []);
-  showToast("To'plam yaratildi");
+  showToast(t('dyn.deck_created'));
   renderDashboard();
   renderCustomDecks('customDeckList2');
 }
@@ -402,30 +451,176 @@ async function createDeckPrompt(){
 // ============================================================
 function showDeckListView(){
   document.getElementById('deckListView').classList.remove('hidden');
+  document.getElementById('bookDetailView').classList.add('hidden');
   document.getElementById('deckDetailView').classList.add('hidden');
 }
 function openDeckDetail(deck){
-  if(deck.is_locked){ showToast("Bu to'plam administrator tomonidan yopilgan"); return; }
+  if(deck.is_locked){ showToast(t('dyn.locked_toast')); return; }
   state.currentDeck = deck;
   cancelEditCard();
   document.getElementById('deckListView').classList.add('hidden');
+  document.getElementById('bookDetailView').classList.add('hidden');
   document.getElementById('deckDetailView').classList.remove('hidden');
   document.getElementById('deckDetailName').textContent = deck.name;
+  document.getElementById('deckNotesInput').value = deck.notes || '';
   renderCardListInDeck();
 }
-document.getElementById('backToDeckList').addEventListener('click', showDeckListView);
+document.getElementById('backToDeckList').addEventListener('click', ()=>{
+  // Agar bu mavzu bitta kitobga tegishli bo'lsa — kitob ichiga qaytamiz,
+  // aks holda to'g'ridan-to'g'ri to'plamlar ro'yxatiga.
+  if(state.currentDeck && state.currentDeck.book_id && state.currentBook){
+    openBookDetail(state.currentBook);
+  }else{
+    showDeckListView();
+  }
+});
 document.getElementById('renameDeckBtn').addEventListener('click', async ()=>{
-  const name = prompt("Yangi nom:", state.currentDeck.name);
+  const name = prompt(t('dyn.rename_prompt'), state.currentDeck.name);
   if(!name || !name.trim() || name.trim()===state.currentDeck.name) return;
   const {data, error} = await sb.from('decks').update({name: name.trim()}).eq('id', state.currentDeck.id).select().single();
-  if(error){ showToast("Xatolik: "+error.message); return; }
+  if(error){ showToast(t('dyn.error_prefix')+error.message); return; }
   state.currentDeck.name = data.name;
   const idx = state.decks.findIndex(d=>d.id===data.id);
   if(idx>=0) state.decks[idx] = data;
   document.getElementById('deckDetailName').textContent = data.name;
   renderCustomDecks('customDeckList2');
   renderDashboard();
-  showToast("Nom yangilandi");
+  showToast(t('dyn.name_updated'));
+});
+document.getElementById('saveDeckNotesBtn').addEventListener('click', async ()=>{
+  const notes = document.getElementById('deckNotesInput').value;
+  const {data, error} = await sb.from('decks').update({notes}).eq('id', state.currentDeck.id).select().single();
+  if(error){ showToast(t('dyn.error_prefix')+error.message); return; }
+  state.currentDeck.notes = data.notes;
+  const idx = state.decks.findIndex(d=>d.id===data.id);
+  if(idx>=0) state.decks[idx] = data;
+  showToast(t('dyn.notes_saved'));
+});
+
+// ============================================================
+// KITOBLAR VA MAVZULAR
+// Kitob — konteyner (masalan "HSK 1 kitobim"); mavzu — o'sha kitob
+// ichidagi bitta bo'lim, texnik jihatdan oddiy deck (book_id bilan).
+// ============================================================
+function renderBooksList(){
+  const el = document.getElementById('bookList');
+  if(!state.books.length){
+    el.innerHTML = `<p style="color:var(--ink-faint);font-size:13px;">${t('dyn.no_books_yet')}</p>`;
+    return;
+  }
+  el.innerHTML = '';
+  state.books.forEach(book=>{
+    const topicCount = state.decks.filter(d=>d.book_id===book.id).length;
+    const row = document.createElement('div');
+    row.className = 'custom-deck-row';
+    row.style.cursor = 'pointer';
+    row.innerHTML = `<div>
+        <div class="name">📚 ${escapeHtml(book.name)}</div>
+        <div class="meta">${topicCount} ${t('dyn.topics_word')}${book.notes ? ' · '+t('dyn.has_note') : ''}</div>
+      </div>
+      <span style="color:var(--ink-faint);font-size:16px;">→</span>`;
+    row.addEventListener('click', ()=> openBookDetail(book));
+    el.appendChild(row);
+  });
+}
+document.getElementById('newBookBtn').addEventListener('click', async ()=>{
+  const name = prompt(t('dyn.book_name_prompt'));
+  if(!name || !name.trim()) return;
+  const {data, error} = await sb.from('books').insert({owner_id: state.user.id, name: name.trim()}).select().single();
+  if(error){ showToast(t('dyn.error_prefix')+error.message); return; }
+  state.books.push(data);
+  showToast(t('dyn.book_created'));
+  renderBooksList();
+});
+
+function openBookDetail(book){
+  state.currentBook = book;
+  document.getElementById('deckListView').classList.add('hidden');
+  document.getElementById('deckDetailView').classList.add('hidden');
+  document.getElementById('bookDetailView').classList.remove('hidden');
+  document.getElementById('bookDetailName').textContent = '📚 ' + book.name;
+  document.getElementById('bookNotesInput').value = book.notes || '';
+  renderTopicList();
+}
+document.getElementById('backToDeckListFromBook').addEventListener('click', ()=>{
+  state.currentBook = null;
+  showDeckListView();
+});
+document.getElementById('renameBookBtn').addEventListener('click', async ()=>{
+  const name = prompt(t('dyn.rename_prompt'), state.currentBook.name);
+  if(!name || !name.trim() || name.trim()===state.currentBook.name) return;
+  const {data, error} = await sb.from('books').update({name: name.trim()}).eq('id', state.currentBook.id).select().single();
+  if(error){ showToast(t('dyn.error_prefix')+error.message); return; }
+  state.currentBook.name = data.name;
+  const idx = state.books.findIndex(b=>b.id===data.id);
+  if(idx>=0) state.books[idx] = data;
+  document.getElementById('bookDetailName').textContent = '📚 ' + data.name;
+  showToast(t('dyn.name_updated'));
+});
+document.getElementById('deleteBookBtn').addEventListener('click', async ()=>{
+  const topicCount = state.decks.filter(d=>d.book_id===state.currentBook.id).length;
+  const msg = topicCount
+    ? `"${state.currentBook.name}" (${topicCount} ${t('dyn.topics_word')}) — ?`
+    : `"${state.currentBook.name}" — ?`;
+  if(!confirm(msg)) return;
+  const {error} = await sb.from('books').delete().eq('id', state.currentBook.id);
+  if(error){ showToast(t('dyn.error_prefix')+error.message); return; }
+  state.books = state.books.filter(b=>b.id!==state.currentBook.id);
+  state.decks = state.decks.filter(d=>d.book_id!==state.currentBook.id);
+  state.currentBook = null;
+  showToast(t('dyn.book_deleted'));
+  showDeckListView();
+  renderBooksList();
+  renderCustomDecks('customDeckList2');
+  renderDashboard();
+});
+document.getElementById('saveBookNotesBtn').addEventListener('click', async ()=>{
+  const notes = document.getElementById('bookNotesInput').value;
+  const {data, error} = await sb.from('books').update({notes}).eq('id', state.currentBook.id).select().single();
+  if(error){ showToast(t('dyn.error_prefix')+error.message); return; }
+  state.currentBook.notes = data.notes;
+  const idx = state.books.findIndex(b=>b.id===data.id);
+  if(idx>=0) state.books[idx] = data;
+  showToast(t('dyn.notes_saved'));
+});
+
+function renderTopicList(){
+  const topics = state.decks.filter(d=>d.book_id===state.currentBook.id)
+    .sort((a,b)=> (a.topic_order||0)-(b.topic_order||0) || new Date(a.created_at)-new Date(b.created_at));
+  const el = document.getElementById('topicList');
+  if(!topics.length){
+    el.innerHTML = `<p style="color:var(--ink-faint);font-size:13px;">${t('dyn.no_topics_yet')}</p>`;
+    return;
+  }
+  el.innerHTML = '';
+  topics.forEach((deck, i)=>{
+    const cardCount = (state.cardsByDeck.get(deck.id)||[]).length;
+    const due = deckDueCount(deck.id);
+    const row = document.createElement('div');
+    row.className = 'custom-deck-row';
+    row.style.cursor = 'pointer';
+    row.innerHTML = `<div>
+        <div class="name">${i+1}. ${escapeHtml(deck.name)}</div>
+        <div class="meta">${cardCount} ${t('dyn.cards_word')}${due>0?` · ${due} ${t('dyn.due_suffix')}`:''}${deck.notes ? ' · '+t('dyn.has_note') : ''}</div>
+      </div>
+      <span style="color:var(--ink-faint);font-size:16px;">→</span>`;
+    row.addEventListener('click', ()=> openDeckDetail(deck));
+    el.appendChild(row);
+  });
+}
+document.getElementById('newTopicBtn').addEventListener('click', async ()=>{
+  const name = prompt(t('dyn.topic_name_prompt'));
+  if(!name || !name.trim()) return;
+  const existingCount = state.decks.filter(d=>d.book_id===state.currentBook.id).length;
+  const {data, error} = await sb.from('decks').insert({
+    owner_id: state.user.id, name: name.trim(),
+    book_id: state.currentBook.id, topic_order: existingCount,
+  }).select().single();
+  if(error){ showToast(t('dyn.error_prefix')+error.message); return; }
+  state.decks.push(data);
+  state.cardsByDeck.set(data.id, []);
+  showToast(t('dyn.topic_created'));
+  renderTopicList();
 });
 
 function renderCardListInDeck(){
@@ -507,12 +702,15 @@ document.getElementById('addCardForm').addEventListener('submit', async (e)=>{
   }
 });
 document.getElementById('deleteDeckBtn').addEventListener('click', async ()=>{
-  if(!confirm("To'plam va undagi barcha kartalar o'chiriladi. Davom etasizmi?")) return;
+  const wasInBook = state.currentDeck.book_id ? state.currentBook : null;
+  const confirmMsg = wasInBook ? "Mavzu va undagi barcha kartalar o'chiriladi. Davom etasizmi?" : "To'plam va undagi barcha kartalar o'chiriladi. Davom etasizmi?";
+  if(!confirm(confirmMsg)) return;
   const {error} = await sb.from('decks').delete().eq('id', state.currentDeck.id);
   if(error){ showToast("Xatolik: "+error.message); return; }
   state.decks = state.decks.filter(d=>d.id!==state.currentDeck.id);
   state.cardsByDeck.delete(state.currentDeck.id);
-  showDeckListView();
+  if(wasInBook){ openBookDetail(wasInBook); }
+  else{ showDeckListView(); }
   renderCustomDecks('customDeckList2');
   renderDashboard();
 });
