@@ -1,9 +1,13 @@
 // sb (Supabase client) config.js faylidan keladi.
 
 let currentUserId = null;
+let allDecks = [];
+let allBooks = [];
+let cardCountByDeck = {};
 
 function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-function fmtDate(iso){ try{ return new Date(iso).toLocaleDateString('uz-UZ'); }catch(e){ return iso; } }
+function fmtDate(iso){ try{ return new Date(iso).toLocaleDateString('uz-UZ', {day:'2-digit', month:'2-digit', year:'numeric'}); }catch(e){ return iso; } }
+function fmtDateTime(iso){ try{ return new Date(iso).toLocaleString('uz-UZ', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}); }catch(e){ return iso; } }
 
 async function init(){
   const {data:{session}} = await sb.auth.getSession();
@@ -21,8 +25,25 @@ async function init(){
   }
   document.getElementById('stateLoading').classList.add('hidden');
   document.getElementById('adminContent').classList.remove('hidden');
+  await loadDecksAndBooksData();
   await loadUsers();
-  await loadDecks();
+}
+
+// ============================================================
+// Hamma foydalanuvchining kitob/to'plam ma'lumotini bir marta
+// oldindan yuklab olamiz — har bir user qatorini ochganda qayta
+// so'rov yubormaslik uchun.
+// ============================================================
+async function loadDecksAndBooksData(){
+  const [{data: decks}, {data: books}, {data: cards}] = await Promise.all([
+    sb.from('decks').select('*').order('created_at', {ascending:false}),
+    sb.from('books').select('*').order('created_at', {ascending:false}),
+    sb.from('cards').select('deck_id'),
+  ]);
+  allDecks = decks || [];
+  allBooks = books || [];
+  cardCountByDeck = {};
+  (cards||[]).forEach(c=>{ cardCountByDeck[c.deck_id] = (cardCountByDeck[c.deck_id]||0)+1; });
 }
 
 async function loadUsers(){
@@ -63,6 +84,13 @@ async function loadUsers(){
     detailBtn.className = 'toggle-btn';
     detailBtn.style.marginLeft = '6px';
     actionTd.appendChild(detailBtn);
+
+    const decksBtn = document.createElement('button');
+    const userDeckCount = allDecks.filter(d=>d.owner_id===u.id).length;
+    decksBtn.textContent = `To'plamlar (${userDeckCount})`;
+    decksBtn.className = 'toggle-btn';
+    decksBtn.style.marginLeft = '6px';
+    actionTd.appendChild(decksBtn);
 
     tbody.appendChild(tr);
 
@@ -109,8 +137,79 @@ async function loadUsers(){
       if(error){ alert('Xatolik: '+error.message); e.target.checked = !e.target.checked; return; }
       await loadUsers();
     });
+
+    // ---- Kengaytirilgan qator: shu userning kitoblari + to'plamlari ----
+    const decksTr = document.createElement('tr');
+    decksTr.className = 'detail-row hidden';
+    const decksTd = document.createElement('td');
+    decksTd.colSpan = 4;
+    decksTr.appendChild(decksTd);
+    tbody.appendChild(decksTr);
+
+    decksBtn.addEventListener('click', ()=>{
+      const opening = decksTr.classList.contains('hidden');
+      decksTr.classList.toggle('hidden');
+      if(opening) renderUserDecks(decksTd, u);
+    });
   });
 }
+
+// ============================================================
+// Bitta foydalanuvchining kitoblari (ichidagi mavzular bilan
+// guruhlangan) va mustaqil to'plamlarini, yaratilgan sanasi bilan
+// chizadi.
+// ============================================================
+function renderUserDecks(container, user){
+  const userBooks = allBooks.filter(b=>b.owner_id===user.id);
+  const userDecks = allDecks.filter(d=>d.owner_id===user.id);
+  const standaloneDecks = userDecks.filter(d=>!d.book_id);
+
+  function deckRowHtml(d){
+    return `<div class="item-row">
+        <div>
+          <div class="name">${esc(d.name)}</div>
+          <div class="meta">${cardCountByDeck[d.id]||0} karta · yaratilgan: ${fmtDateTime(d.created_at)}</div>
+        </div>
+        <span class="badge ${d.is_locked?'inactive':'active'}" style="cursor:pointer;" data-deck-id="${d.id}" data-locked="${d.is_locked}">${d.is_locked?'Qulflangan':'Ochiq'}</span>
+      </div>`;
+  }
+
+  let html = '<div class="decks-section">';
+  if(!userBooks.length && !standaloneDecks.length){
+    html += `<p class="no-items">Bu foydalanuvchi hali hech qanday kitob yoki to'plam yaratmagan.</p>`;
+  }
+  userBooks.forEach(book=>{
+    const topics = userDecks.filter(d=>d.book_id===book.id)
+      .sort((a,b)=>(a.topic_order||0)-(b.topic_order||0));
+    html += `<div class="book-group">
+      <div class="book-group-head">📚 ${esc(book.name)}${book.is_shared?' <span class="badge active" style="margin-left:2px;">Ochiq</span>':''}
+        <span class="meta">— ${topics.length} mavzu · yaratilgan: ${fmtDateTime(book.created_at)}</span>
+      </div>
+      ${topics.length ? topics.map(deckRowHtml).join('') : '<p class="no-items">Bu kitobda hali mavzu yo\'q.</p>'}
+    </div>`;
+  });
+  if(standaloneDecks.length){
+    html += `<div class="book-group">
+      <div class="book-group-head">Mustaqil to'plamlar</div>
+      ${standaloneDecks.map(deckRowHtml).join('')}
+    </div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+
+  container.querySelectorAll('[data-deck-id]').forEach(badge=>{
+    badge.addEventListener('click', async ()=>{
+      const deckId = badge.dataset.deckId;
+      const wasLocked = badge.dataset.locked === 'true';
+      const {error} = await sb.from('decks').update({is_locked: !wasLocked}).eq('id', deckId);
+      if(error){ alert('Xatolik: '+error.message); return; }
+      const d = allDecks.find(x=>x.id===deckId);
+      if(d) d.is_locked = !wasLocked;
+      renderUserDecks(container, user);
+    });
+  });
+}
+
 function showMsg(text){
   const t = document.createElement('div');
   t.textContent = text;
@@ -201,44 +300,3 @@ document.getElementById('sendPushBtn').addEventListener('click', async ()=>{
     statusEl.style.color = 'var(--bad)';
   }
 });
-
-// ============================================================
-// BARCHA SHAXSIY TO'PLAMLAR (admin barchasini ko'rib, qulflay oladi)
-// ============================================================
-let profilesById = {};
-async function loadDecks(){
-  const {data: profiles} = await sb.from('profiles').select('id, email');
-  profilesById = {};
-  (profiles||[]).forEach(p=>{ profilesById[p.id] = p.email; });
-
-  const {data: decks, error} = await sb.from('decks').select('*').order('created_at', {ascending:false});
-  if(error){ document.getElementById('decksTbody').innerHTML = `<tr><td colspan="5" style="color:var(--ink-faint);">Yuklab bo'lmadi: ${esc(error.message)}</td></tr>`; return; }
-
-  const {data: cards} = await sb.from('cards').select('deck_id');
-  const countByDeck = {};
-  (cards||[]).forEach(c=>{ countByDeck[c.deck_id] = (countByDeck[c.deck_id]||0)+1; });
-
-  const tbody = document.getElementById('decksTbody');
-  if(!decks.length){ tbody.innerHTML = `<tr><td colspan="5" style="color:var(--ink-faint);">Hali hech kim to'plam yaratmagan.</td></tr>`; return; }
-  tbody.innerHTML = '';
-  decks.forEach(d=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${esc(profilesById[d.owner_id] || d.owner_id)}</td>
-      <td>${esc(d.name)}</td>
-      <td>${countByDeck[d.id] || 0}</td>
-      <td><span class="badge ${d.is_locked ? 'inactive' : 'active'}">${d.is_locked ? 'Qulflangan' : 'Ochiq'}</span></td>
-      <td></td>`;
-    const actionTd = tr.querySelector('td:last-child');
-    const btn = document.createElement('button');
-    btn.textContent = d.is_locked ? 'Ochish' : 'Qulflash';
-    btn.className = 'toggle-btn ' + (d.is_locked ? 'make-active' : 'make-inactive');
-    btn.addEventListener('click', async ()=>{
-      const {error} = await sb.from('decks').update({is_locked: !d.is_locked}).eq('id', d.id);
-      if(error){ alert('Xatolik: '+error.message); return; }
-      await loadDecks();
-    });
-    actionTd.appendChild(btn);
-    tbody.appendChild(tr);
-  });
-}
