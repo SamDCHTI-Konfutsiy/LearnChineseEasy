@@ -1137,25 +1137,39 @@ async function updatePushButtonState(){
 async function subscribeToPush(){
   const btn = document.getElementById('togglePushBtn');
   try{
-    const currentState = await getPushSubscriptionState();
-    const reg = await navigator.serviceWorker.ready;
+    if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+      showToast("Bu qurilmada push qo'llab-quvvatlanmaydi.");
+      return;
+    }
 
-    if(currentState === 'subscribed'){
-      const sub = await reg.pushManager.getSubscription();
-      if(sub){
-        await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
-        await sub.unsubscribe();
+    // MUHIM: ruxsat oynasi faqat tugma bosilgan zahoti, ORADA hech
+    // qanday boshqa await bo'lmasa chiqadi (brauzerning "user gesture"
+    // qoidasi). Shu sabab bu — funksiyadagi ENG BIRINCHI async ish.
+    if(Notification.permission === 'denied'){
+      showToast("Bildirishnomalar brauzer tomonidan bloklangan. Manzil satridagi qulf belgisi orqali qo'lda yoqing.");
+      return;
+    }
+    if(Notification.permission === 'default'){
+      const perm = await Notification.requestPermission();
+      if(perm !== 'granted'){
+        showToast("Ruxsat berilmadi.");
+        return;
       }
+    }
+
+    // Bu yerga yetganda ruxsat allaqachon 'granted' — endi obuna holatini tekshiramiz
+    const reg = await navigator.serviceWorker.ready;
+    const existingSub = await reg.pushManager.getSubscription();
+
+    if(existingSub){
+      // Ruxsat bor va allaqachon obuna — demak bu bosilish "o'chirish" degani
+      await sb.from('push_subscriptions').delete().eq('endpoint', existingSub.endpoint);
+      await existingSub.unsubscribe();
       showToast('Bildirishnomalar o\'chirildi.');
       await updatePushButtonState();
       return;
     }
 
-    const perm = await Notification.requestPermission();
-    if(perm !== 'granted'){
-      showToast("Ruxsat berilmadi — brauzer sozlamalaridan yoqishingiz mumkin.");
-      return;
-    }
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
